@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compliance Passport — Answer it once. Answer it everywhere.</title>
+<meta name="description" content="Compliance Passport structures your policies, controls and records into an evidence graph, then answers any buyer's supplier risk, ESG, labour or security questionnaire from it — cited to the clause, and honest about the gaps.">
+<meta name="color-scheme" content="light">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   TOKENS
+   ═══════════════════════════════════════════════════════════ */
+:root{
+  --bg:#FFFFFF;
+  --surface:#FAFAF9;
+  --surface-sunken:#F5F5F4;
+  --border:#E7E5E4;
+  --border-strong:#D6D3D1;
+  --ink:#1C1917;
+  --ink-2:#57534E;
+  --ink-3:#A8A29E;
+  --label:#78716C;                    /* AA-safe stone for small labels */
+  --accent:#14594A;
+  --accent-hover:#0F4638;
+  --accent-tint:#ECF5F2;
+  --accent-edge:#CFE4DD;
+  --ok-fg:#15803D; --ok-bg:#F0FDF4; --ok-border:#BBF7D0;
+  --warn-fg:#B45309; --warn-bg:#FFFBEB; --warn-border:#FDE68A;
+  --gap-fg:#B91C1C; --gap-bg:#FEF2F2; --gap-border:#FECACA;
+  --radius:8px;
+
+  --sans:-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  --serif:ui-serif, "New York", "Iowan Old Style", "Palatino", Georgia, "Times New Roman", serif;
+  --mono:ui-monospace, "SF Mono", Menlo, monospace;
+
+  --measure:56ch;
+  --shell:1200px;
+  --gutter:24px;
+  --side:150px;                        /* margin column on wide screens */
+  --side-gap:72px;
+  --nav-h:62px;
+
+  --t-hero:clamp(40px, 6.6vw, 68px);
+  --t-claim:clamp(30px, 4.5vw, 50px);
+  --t-h2:clamp(28px, 3.5vw, 40px);
+  --t-h3:clamp(17px, 1.4vw, 19px);
+  --t-lead:clamp(18px, 1.5vw, 20px);
+  --t-body:17px;
+
+  --sp-section:clamp(96px, 12vw, 184px);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box}
+html{
+  -webkit-text-size-adjust:100%;scroll-behavior:smooth;
+  scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;
+}
+@media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} }
+
+body{
+  margin:0;background:var(--bg);color:var(--ink-2);
+  font-family:var(--sans);font-size:var(--t-body);line-height:1.65;
+  font-kerning:normal;font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;overflow-x:hidden;
+}
+p{margin:0;text-wrap:pretty}
+ul,ol{margin:0;padding:0;list-style:none}
+dl,dd{margin:0}
+svg{display:block}
+::selection{background:var(--accent-tint);color:var(--accent-hover)}
+
+/* display type — the editorial layer */
+h1,h2,h3,h4{margin:0;color:var(--ink);text-wrap:balance}
+h1,h2,.claim,.pullquote,.close-line{
+  font-family:var(--serif);font-weight:500;font-style:normal;
+}
+h3,h4{font-family:var(--sans);font-weight:600}
+
+a{color:var(--accent);text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+/* underline that grows on hover */
+.lnk{position:relative;display:inline-block}
+.lnk::after{
+  content:"";position:absolute;left:0;right:0;bottom:-2px;height:1px;
+  background:currentColor;transform:scaleX(1);transform-origin:left;opacity:.3;
+  transition:opacity .25s var(--ease);
+}
+.lnk:hover::after{opacity:1}
+
+/* ═══════════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════════ */
+.shell{max-width:var(--shell);margin:0 auto;padding:0 var(--gutter)}
+@media (min-width:760px){ :root{--gutter:40px} }
+
+.cols{display:grid;gap:0}
+@media (min-width:1120px){
+  .cols{grid-template-columns:var(--side) minmax(0,1fr);gap:0 var(--side-gap)}
+}
+.col-side{
+  display:flex;align-items:baseline;gap:14px;margin-bottom:36px;
+  padding-bottom:14px;border-bottom:1px solid var(--border);
+}
+@media (min-width:1120px){
+  .col-side{
+    display:block;margin-bottom:0;padding-bottom:0;border-bottom:0;
+    position:sticky;top:calc(var(--nav-h) + 48px);align-self:start;
+  }
+}
+.sec-num{
+  font-family:var(--mono);font-size:12px;color:var(--ink-3);letter-spacing:.08em;
+  font-variant-numeric:tabular-nums;
+}
+.sec-label{
+  font-size:12.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.13em;color:var(--label);
+}
+@media (min-width:1120px){
+  .sec-num{display:block;margin-bottom:10px}
+  .col-side .sec-label{display:block;max-width:9em;line-height:1.4}
+  .col-side::before{
+    content:"";display:block;width:24px;height:1px;background:var(--border-strong);
+    margin-bottom:18px;
+  }
+}
+.prose{max-width:var(--measure)}
+.stack-24>*+*{margin-top:24px}
+
+section{padding:var(--sp-section) 0;border-top:1px solid var(--border);scroll-margin-top:calc(var(--nav-h) + 12px)}
+section.plain{border-top:0}
+.band{background:var(--surface)}
+
+h2{font-size:var(--t-h2);line-height:1.14;letter-spacing:-.02em;max-width:19ch}
+h3{font-size:var(--t-h3);line-height:1.4;letter-spacing:-.01em}
+.sec-lead{margin-top:26px;font-size:var(--t-lead);line-height:1.6;max-width:var(--measure)}
+
+/* ═══════════════════════════════════════════════════════════
+   TYPE HELPERS
+   ═══════════════════════════════════════════════════════════ */
+.lead{font-size:var(--t-lead);line-height:1.6}
+.small{font-size:15px;line-height:1.6}
+.muted{color:var(--label)}
+.em{color:var(--ink);font-weight:600}
+.tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+.doc{
+  font-family:var(--mono);font-size:.82em;
+  background:var(--accent-tint);color:var(--accent);
+  padding:2px 6px;border-radius:4px;white-space:nowrap;
+  border:1px solid var(--accent-edge);
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;font-weight:600;
+  padding:4px 9px;border-radius:4px;border:1px solid;white-space:nowrap;
+}
+.badge-ok{color:var(--ok-fg);background:var(--ok-bg);border-color:var(--ok-border)}
+.badge-warn{color:var(--warn-fg);background:var(--warn-bg);border-color:var(--warn-border)}
+.badge-gap{color:var(--gap-fg);background:var(--gap-bg);border-color:var(--gap-border)}
+.badge-neutral{color:var(--label);background:var(--bg);border-color:var(--border-strong)}
+.badge-accent{color:var(--accent);background:var(--accent-tint);border-color:var(--accent-edge)}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex:0 0 auto}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════════════════════════ */
+.site-head{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,0);
+  border-bottom:1px solid transparent;
+  transition:background .3s var(--ease),border-color .3s var(--ease),
+             -webkit-backdrop-filter .3s var(--ease),backdrop-filter .3s var(--ease);
+}
+.site-head.stuck{
+  background:rgba(255,255,255,.82);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);
+  backdrop-filter:saturate(180%) blur(14px);
+  border-bottom-color:var(--border);
+}
+.site-head .bar{
+  position:relative;max-width:var(--shell);margin:0 auto;padding:0 var(--gutter);
+  height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;gap:24px;
+}
+.wordmark{
+  display:inline-flex;align-items:center;gap:11px;
+  font-size:14.5px;font-weight:600;color:var(--ink);letter-spacing:-.005em;white-space:nowrap;
+}
+.wordmark .glyph{
+  width:17px;height:17px;border:1.25px solid var(--accent);border-radius:4px;
+  position:relative;flex:0 0 auto;
+}
+.wordmark .glyph::after{
+  content:"";position:absolute;left:3.5px;right:3.5px;top:3.5px;height:1.5px;
+  background:var(--accent);border-radius:1px;
+}
+.wordmark .glyph::before{
+  content:"";position:absolute;left:3.5px;width:5px;bottom:3.5px;height:1.5px;
+  background:var(--accent);border-radius:1px;
+}
+.nav{display:none;align-items:center;gap:2px}
+@media (min-width:1000px){ .nav{display:flex} }
+.nav a{
+  display:inline-flex;align-items:baseline;gap:7px;white-space:nowrap;
+  font-size:13.5px;color:var(--ink-2);padding:7px 11px;border-radius:6px;
+  transition:background .2s var(--ease),color .2s var(--ease);
+}
+.nav a .n{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.05em}
+.nav a:hover{background:var(--surface-sunken);color:var(--ink)}
+.nav a.active{color:var(--accent);background:var(--accent-tint)}
+.nav a.active .n{color:var(--accent)}
+.head-cta{
+  font-size:13.5px;font-weight:500;color:var(--accent);
+  border:1px solid var(--border-strong);padding:7px 15px;border-radius:6px;
+  transition:border-color .2s var(--ease),background .2s var(--ease);white-space:nowrap;
+}
+.head-cta:hover{border-color:var(--accent);background:var(--accent-tint)}
+@media (max-width:600px){ .head-cta{display:none} }
+.progress{position:absolute;left:0;bottom:-1px;height:1.5px;width:0;background:var(--accent);transition:width .12s linear}
+
+/* ═══════════════════════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════════════════════ */
+.hero{padding:clamp(80px,11vw,150px) 0 clamp(60px,7vw,96px);border-top:0}
+.hero-grid{display:grid;gap:56px}
+@media (min-width:1000px){
+  .hero-grid{grid-template-columns:minmax(0,1fr) 232px;gap:0 var(--side-gap);align-items:start}
+}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--label);margin-bottom:30px;display:flex;align-items:center;gap:14px;
+}
+.eyebrow::after{content:"";height:1px;width:60px;background:var(--border-strong)}
+.hero h1{font-size:var(--t-hero);line-height:1.0;letter-spacing:-.025em;max-width:11ch}
+.tagline{
+  margin-top:24px;font-size:clamp(20px,2.4vw,27px);line-height:1.28;
+  letter-spacing:-.018em;color:var(--ink);font-weight:500;font-family:var(--sans);
+}
+.subhead{margin-top:30px;font-size:var(--t-lead);line-height:1.62;max-width:50ch}
+.cta-row{margin-top:44px;display:flex;flex-wrap:wrap;align-items:center;gap:14px 26px}
+.btn{
+  display:inline-flex;align-items:center;gap:11px;
+  background:var(--accent);color:#fff;border:1px solid var(--accent);
+  padding:13px 24px;border-radius:var(--radius);
+  font-size:16px;font-weight:500;line-height:1.4;
+  transition:background .22s var(--ease),border-color .22s var(--ease),transform .22s var(--ease);
+}
+.btn:hover{background:var(--accent-hover);border-color:var(--accent-hover);color:#fff;transform:translateY(-1px)}
+.btn .arrow{transition:transform .22s var(--ease)}
+.btn:hover .arrow{transform:translateX(4px)}
+.btn-quiet{
+  display:inline-flex;align-items:center;font-size:16px;color:var(--ink-2);
+  padding-bottom:3px;position:relative;
+}
+.btn-quiet::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--border-strong);
+  transition:background .22s var(--ease);
+}
+.btn-quiet:hover{color:var(--ink)}
+.btn-quiet:hover::after{background:var(--ink)}
+
+/* contents index */
+.toc{border-top:1px solid var(--border-strong);padding-top:18px}
+@media (min-width:1000px){ .toc{margin-top:8px} }
+.toc-h{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--label);margin-bottom:6px;
+}
+.toc-list li{border-bottom:1px solid var(--border)}
+.toc-list a{
+  display:flex;align-items:baseline;gap:12px;padding:9px 0;
+  color:var(--ink-2);font-size:14.5px;
+  transition:color .2s var(--ease),padding-left .2s var(--ease);
+}
+.toc-list a:hover{color:var(--accent);padding-left:4px}
+.toc-list .i{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:.05em}
+.toc-note{margin-top:16px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase}
+
+.hero-facts{
+  margin-top:clamp(64px,8vw,96px);
+  display:grid;gap:1px;background:var(--border);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+}
+@media (min-width:760px){ .hero-facts{grid-template-columns:repeat(3,1fr)} }
+.hero-fact{background:var(--bg);padding:24px 24px 24px 0}
+@media (min-width:760px){ .hero-fact{padding:26px 26px} .hero-fact:first-child{padding-left:0} }
+.hero-fact .t{color:var(--ink);font-weight:500;font-size:15.5px}
+.hero-fact .d{color:var(--label);font-size:14.5px;margin-top:4px;line-height:1.5}
+
+/* ═══════════════════════════════════════════════════════════
+   ANSWER OBJECT
+   ═══════════════════════════════════════════════════════════ */
+.card{border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg);overflow:hidden}
+.card-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;
+  padding:13px 22px;background:var(--surface-sunken);border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11px;color:var(--label);letter-spacing:.06em;
+}
+.card-bar .sep{width:1px;height:11px;background:var(--border-strong)}
+.card-body{padding:26px 22px}
+@media (min-width:680px){ .card-body{padding:30px} }
+.q-line{font-size:16.5px;color:var(--ink);line-height:1.5;max-width:52ch;font-weight:500}
+.a-line{margin-top:16px;font-size:16.5px;line-height:1.62;max-width:52ch}
+.cites{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cites .cl{font-size:12.5px;color:var(--label);margin-right:4px;text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono)}
+.meter-row{
+  margin-top:26px;padding-top:22px;border-top:1px solid var(--border);
+  display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;
+}
+.meter{display:flex;align-items:center;gap:13px;min-width:200px;flex:1 1 200px}
+.meter-track{
+  position:relative;flex:1 1 auto;height:4px;border-radius:99px;
+  background:var(--surface-sunken);border:1px solid var(--border);overflow:hidden;
+}
+.meter-fill{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:99px}
+.meter-val{font-family:var(--mono);font-size:12.5px;color:var(--ink);flex:0 0 auto}
+.meter-note{font-size:13.5px;color:var(--label)}
+
+/* ═══════════════════════════════════════════════════════════
+   STATS
+   ═══════════════════════════════════════════════════════════ */
+.stats{display:grid;gap:1px;background:var(--border);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+@media (min-width:560px){ .stats{grid-template-columns:1fr 1fr} }
+@media (min-width:920px){ .stats{grid-template-columns:repeat(4,1fr)} }
+.stat{background:var(--bg);padding:28px 22px 28px 0}
+@media (min-width:560px){ .stat{padding:30px 24px} }
+.stat .num{
+  font-family:var(--sans);
+  font-size:clamp(31px,3.4vw,40px);line-height:1;letter-spacing:-.04em;
+  color:var(--ink);font-weight:600;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+}
+.stat .unit{font-size:.46em;font-weight:500;color:var(--label);letter-spacing:0;margin-left:3px}
+.stat .caption{margin-top:14px;font-size:14.5px;line-height:1.5;color:var(--ink-2)}
+.stat .stag{margin-top:16px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+
+/* ═══════════════════════════════════════════════════════════
+   DRIFT
+   ═══════════════════════════════════════════════════════════ */
+.drift{margin-top:52px}
+.drift-q{
+  padding:18px 24px;background:var(--surface-sunken);
+  border:1px solid var(--border-strong);border-bottom:0;
+  border-radius:var(--radius) var(--radius) 0 0;font-size:15.5px;color:var(--ink);line-height:1.5;
+}
+.drift-q .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--label);display:block;margin-bottom:8px}
+.drift-grid{display:grid;gap:1px;background:var(--border-strong);border:1px solid var(--border-strong)}
+@media (min-width:720px){ .drift-grid{grid-template-columns:1fr 1fr} }
+.drift-col{background:var(--bg);padding:24px}
+.drift-col .who{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;color:var(--label);
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.drift-col .said{margin-top:18px;font-size:17px;line-height:1.5;color:var(--ink);font-family:var(--serif)}
+.drift-col .src{margin-top:16px;font-size:13.5px;color:var(--label)}
+.drift-note{
+  display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;
+  padding:18px 24px;background:var(--warn-bg);
+  border:1px solid var(--warn-border);border-top:0;
+  border-radius:0 0 var(--radius) var(--radius);
+}
+.drift-note p{font-size:15px;line-height:1.55;color:#78350F;max-width:52ch;flex:1 1 300px}
+
+/* ═══════════════════════════════════════════════════════════
+   INSIGHT
+   ═══════════════════════════════════════════════════════════ */
+.claim{font-size:var(--t-claim);line-height:1.1;letter-spacing:-.022em;color:var(--ink);max-width:17ch}
+.insight-body{margin-top:44px;max-width:54ch;font-size:clamp(18px,1.7vw,21px);line-height:1.68}
+.insight-body>*+*{margin-top:26px}
+.kicker{
+  margin-top:52px;padding:30px 0 0;border-top:1px solid var(--border-strong);
+  max-width:56ch;font-size:var(--t-lead);line-height:1.55;color:var(--ink);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FIGURES
+   ═══════════════════════════════════════════════════════════ */
+.figure{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg)}
+.figure-head{
+  padding:13px 22px;background:var(--surface-sunken);border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--label);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.scrollhint{display:none;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--label)}
+@media (max-width:760px){ .scrollhint{display:block} }
+.figure-body{padding:30px 22px;overflow-x:auto}
+.figure-body svg{min-width:600px;width:100%;height:auto}
+.figure-foot{padding:15px 22px;border-top:1px solid var(--border);font-size:13.5px;color:var(--label);line-height:1.55}
+
+/* ═══════════════════════════════════════════════════════════
+   STEPS
+   ═══════════════════════════════════════════════════════════ */
+.steps{border-top:1px solid var(--border)}
+.step{padding:34px 0;border-bottom:1px solid var(--border);display:grid;gap:20px}
+@media (min-width:860px){
+  .step{grid-template-columns:minmax(0,1fr) 104px;gap:0 40px;align-items:start;padding:44px 0}
+  .step .glyphbox{order:2}
+}
+.step .idx{
+  font-family:var(--mono);font-size:10.5px;color:var(--label);letter-spacing:.12em;
+  text-transform:uppercase;margin-bottom:12px;
+}
+.step .content>*+*{margin-top:14px}
+.step .content p{max-width:var(--measure)}
+.step .glyphbox{
+  width:104px;height:104px;border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--surface);display:flex;align-items:center;justify-content:center;
+}
+.step .glyphbox svg{width:64px;height:64px}
+.step-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.tag{
+  font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:var(--label);
+  border:1px solid var(--border);border-radius:4px;padding:5px 9px;background:var(--surface);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   REFUSAL
+   ═══════════════════════════════════════════════════════════ */
+.example{margin-top:48px;border:1px solid var(--border-strong);border-radius:var(--radius);overflow:hidden}
+.ex-row{padding:26px 22px;border-top:1px solid var(--border)}
+@media (min-width:680px){ .ex-row{padding:28px 30px} }
+.ex-row:first-child{border-top:0}
+.ex-q{background:var(--surface-sunken)}
+.ex-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--label);margin-bottom:14px}
+.ex-question{color:var(--ink);font-size:16.5px;line-height:1.55;max-width:var(--measure);font-weight:500}
+.ex-sub{margin-top:12px;font-size:13.5px;color:var(--label);max-width:var(--measure);line-height:1.55}
+.rejected{color:var(--label);font-family:var(--serif);font-style:italic;max-width:var(--measure);font-size:17px;line-height:1.55}
+.rejected .strike{text-decoration:line-through;text-decoration-color:var(--border-strong);text-decoration-thickness:1px}
+.gap-panel{background:var(--gap-bg);border-top:1px solid var(--gap-border)}
+.gap-head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:24px}
+.gap-id{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);letter-spacing:.04em}
+.kv{display:grid;gap:20px}
+@media (min-width:760px){ .kv{grid-template-columns:186px minmax(0,1fr);gap:22px 30px} }
+.kv dt{font-size:13px;color:var(--label);padding-top:3px;text-transform:uppercase;letter-spacing:.08em;font-family:var(--mono);font-size:10.5px;line-height:1.6}
+.kv dd{font-size:16px;line-height:1.6;color:var(--ink-2);max-width:var(--measure)}
+.unblocks{margin-top:10px}
+.unblocks li{display:flex;gap:14px;padding:10px 0;border-top:1px solid var(--gap-border);font-size:15px;line-height:1.5}
+.unblocks li:first-child{border-top:0;padding-top:0}
+.unblocks .qid{font-family:var(--mono);font-size:12px;color:var(--label);flex:0 0 auto;padding-top:2px}
+.punch{
+  margin-top:52px;padding:30px 0 0;border-top:1px solid var(--border-strong);
+  font-size:var(--t-lead);line-height:1.55;color:var(--ink);max-width:50ch;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ARCHITECTURE
+   ═══════════════════════════════════════════════════════════ */
+.arch-points{margin-top:52px;display:grid;gap:34px}
+@media (min-width:760px){ .arch-points{grid-template-columns:1fr 1fr;gap:40px 48px} }
+.arch-points .pt>*+*{margin-top:10px}
+.arch-points p{font-size:16px;line-height:1.6}
+.runtime{
+  margin-top:48px;padding:22px 26px;border:1px solid var(--border);border-radius:var(--radius);
+  background:var(--bg);display:flex;flex-wrap:wrap;gap:10px 30px;align-items:center;
+}
+.runtime .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+.runtime .v{font-size:15.5px;color:var(--ink)}
+
+/* ═══════════════════════════════════════════════════════════
+   ROADMAP
+   ═══════════════════════════════════════════════════════════ */
+.horizons{display:grid;gap:0}
+.horizon{padding:34px 0 10px;border-top:1px solid var(--border)}
+@media (min-width:900px){
+  .horizons{grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-top:1px solid var(--border)}
+  .horizon{background:var(--bg);padding:34px 30px 12px;border-top:0}
+  .horizon:first-child{padding-left:0}
+  .horizon:last-child{padding-right:0}
+}
+.horizon-head{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.horizon-head h3{font-size:13px;text-transform:uppercase;letter-spacing:.16em;font-family:var(--sans)}
+.horizon .note{font-size:14.5px;color:var(--label);margin-bottom:24px;line-height:1.5}
+.horizon ul li{padding:17px 0;border-top:1px solid var(--border)}
+.horizon ul li:first-child{border-top:0;padding-top:0}
+.horizon .t{display:block;color:var(--ink);font-weight:500;font-size:15.5px;line-height:1.4}
+.horizon .d{display:block;margin-top:7px;font-size:14.5px;line-height:1.55;color:var(--ink-2)}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTORS
+   ═══════════════════════════════════════════════════════════ */
+.sectors{display:grid;gap:1px;background:var(--border);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+@media (min-width:600px){ .sectors{grid-template-columns:1fr 1fr} }
+@media (min-width:900px){ .sectors{grid-template-columns:repeat(3,1fr)} }
+.sector{background:var(--bg);padding:26px 22px 26px 0}
+@media (min-width:600px){ .sector{padding:26px 24px} }
+.sector .n{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3)}
+.sector .name{color:var(--ink);font-weight:500;font-size:16.5px;margin-top:12px}
+.sector .what{font-size:14.5px;color:var(--label);margin-top:7px;line-height:1.5}
+.callout{
+  margin-top:48px;padding:30px;border:1px solid var(--border-strong);
+  border-radius:var(--radius);background:var(--surface);
+}
+.callout p{max-width:54ch}
+.callout p+p{margin-top:18px}
+
+/* ═══════════════════════════════════════════════════════════
+   ORIGIN
+   ═══════════════════════════════════════════════════════════ */
+.timeline{margin:8px 0 48px;position:relative;padding-left:28px}
+.timeline::before{content:"";position:absolute;left:4px;top:14px;bottom:14px;width:1px;background:var(--border-strong)}
+.timeline li{position:relative;padding:15px 0}
+.timeline li::before{
+  content:"";position:absolute;left:-28px;top:23px;width:9px;height:9px;border-radius:50%;
+  background:var(--bg);border:1.5px solid var(--border-strong);
+}
+.timeline li.mark::before{border-color:var(--accent);background:var(--accent)}
+.timeline .when{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+.timeline .what{margin-top:8px;font-size:16.5px;color:var(--ink);line-height:1.5;max-width:50ch}
+.origin-body{max-width:var(--measure)}
+.origin-body>*+*{margin-top:22px}
+.pullquote{
+  margin:52px 0 0;padding:32px 0 0;border-top:1px solid var(--border-strong);
+  font-size:clamp(22px,2.6vw,30px);line-height:1.28;letter-spacing:-.018em;
+  color:var(--ink);max-width:20ch;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CLOSE + FOOTER
+   ═══════════════════════════════════════════════════════════ */
+.close{padding:clamp(110px,14vw,196px) 0}
+.close-line{font-size:var(--t-claim);line-height:1.1;letter-spacing:-.022em;color:var(--ink);max-width:19ch}
+.site-foot{border-top:1px solid var(--border);background:var(--surface);padding:56px 0 60px}
+.foot-grid{display:grid;gap:36px}
+@media (min-width:760px){ .foot-grid{grid-template-columns:1.5fr 1fr 1fr;gap:48px} }
+.foot-grid h4{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--label);font-weight:600;margin-bottom:16px}
+.foot-links li{padding:5px 0}
+.foot-links a{color:var(--ink-2);font-size:14.5px;transition:color .2s var(--ease)}
+.foot-links a:hover{color:var(--accent)}
+.foot-note{margin-top:16px;font-size:14px;color:var(--label);max-width:34ch;line-height:1.55}
+.foot-bottom{
+  margin-top:48px;padding-top:22px;border-top:1px solid var(--border);
+  display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--label);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOTION
+   ═══════════════════════════════════════════════════════════ */
+.js .rv{opacity:0;transform:translateY(12px)}
+.js .rv.in{opacity:1;transform:none;transition:opacity .7s var(--ease),transform .7s var(--ease)}
+@media (prefers-reduced-motion:reduce){
+  .js .rv{opacity:1;transform:none}
+  .js .rv.in{transition:none}
+  .btn:hover{transform:none}
+}
+
+.skip{position:absolute;left:-9999px;top:0;z-index:60;background:var(--bg);color:var(--accent);padding:12px 16px;border:1px solid var(--border-strong);border-radius:var(--radius)}
+.skip:focus{left:16px;top:12px}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT
+   ═══════════════════════════════════════════════════════════ */
+@media print{
+  .site-head,.toc,.cta-row,.scrollhint{display:none!important}
+  .js .rv{opacity:1!important;transform:none!important}
+  section{padding:32px 0;break-inside:avoid}
+  body{font-size:11pt;color:#1C1917}
+  .figure,.card,.example{break-inside:avoid}
+}
+</style>
+</head>
+<body id="top">
+<script>document.documentElement.classList.remove('no-js');document.documentElement.classList.add('js');</script>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-head" id="head">
+  <div class="bar">
+    <a class="wordmark" href="#top" aria-label="Compliance Passport — back to top">
+      <span class="glyph" aria-hidden="true"></span>Compliance Passport
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#problem"><span class="n">01</span>Problem</a>
+      <a href="#insight"><span class="n">02</span>Insight</a>
+      <a href="#how"><span class="n">03</span>How</a>
+      <a href="#refusal"><span class="n">04</span>Refusal</a>
+      <a href="#architecture"><span class="n">05</span>Architecture</a>
+      <a href="#platform"><span class="n">06</span>Platform</a>
+    </nav>
+    <a class="head-cta" href="/library">Launch app</a>
+    <div class="progress" id="progress" aria-hidden="true"></div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ═════════ HERO ═════════ -->
+<section class="hero plain" aria-labelledby="hero-title">
+  <div class="shell">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow rv">Supplier compliance</p>
+        <h1 id="hero-title" class="rv">Compliance Passport</h1>
+        <p class="tagline rv">Answer it once. Answer it everywhere.</p>
+        <p class="subhead rv">Every enterprise buyer sends a different assessment and expects the same
+          evidence. Compliance Passport ingests your policies, controls and registers once and structures them
+          to the clause. After that, any buyer's questionnaire — supplier risk, ESG, labour, security, in
+          whatever file shape it arrives — is answered from that evidence, with the exact document and clause
+          cited behind every line. Where the evidence does not exist, it says so and files a gap.</p>
+        <div class="cta-row rv">
+          <a class="btn" href="/library">Open the app <span class="arrow" aria-hidden="true">&#8594;</span></a>
+          <a class="btn-quiet" href="/runs/new">Upload a questionnaire</a>
+          <a class="btn-quiet" href="#how">See how it works</a>
+        </div>
+      </div>
+
+      <aside class="toc rv" aria-label="Contents">
+        <p class="toc-h">Contents</p>
+        <ol class="toc-list">
+          <li><a href="#problem"><span class="i">01</span><span>The problem</span></a></li>
+          <li><a href="#insight"><span class="i">02</span><span>The insight</span></a></li>
+          <li><a href="#how"><span class="i">03</span><span>How it works</span></a></li>
+          <li><a href="#refusal"><span class="i">04</span><span>The refusal</span></a></li>
+          <li><a href="#architecture"><span class="i">05</span><span>Architecture</span></a></li>
+          <li><a href="#platform"><span class="i">06</span><span>The platform</span></a></li>
+          <li><a href="#who"><span class="i">07</span><span>Who it is for</span></a></li>
+          <li><a href="#origin"><span class="i">08</span><span>Origin</span></a></li>
+        </ol>
+        <p class="toc-note">Vision document · 2026</p>
+      </aside>
+    </div>
+
+    <div class="hero-facts">
+      <div class="hero-fact rv">
+        <p class="t">Answer once</p>
+        <p class="d">One evidence graph, every buyer's format</p>
+      </div>
+      <div class="hero-fact rv">
+        <p class="t">Cited to the clause</p>
+        <p class="d">Every claim traced to a document and section</p>
+      </div>
+      <div class="hero-fact rv">
+        <p class="t">Refuses without evidence</p>
+        <p class="d">No source, no answer — a gap instead</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ UNIT OF WORK ═════════ -->
+<section class="plain" style="padding-top:0" aria-labelledby="unit-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">&#8212;</p>
+        <p class="sec-label">The unit of work</p>
+      </div>
+      <div class="col-main">
+        <h2 id="unit-title" class="rv" style="max-width:23ch">Not a filled-in cell. An answer with its evidence
+          attached.</h2>
+
+        <div class="card rv" style="margin-top:44px">
+          <div class="card-bar">
+            <span>RUN 4813</span><span class="sep" aria-hidden="true"></span>
+            <span>COUPA RISK ASSESS</span><span class="sep" aria-hidden="true"></span>
+            <span>Q18 / 53</span><span class="sep" aria-hidden="true"></span>
+            <span>LABOUR STANDARDS</span>
+          </div>
+          <div class="card-body">
+            <p class="q-line">State the maximum number of working hours permitted per week for your personnel,
+              including overtime, and identify the policy that governs it.</p>
+            <p class="a-line">A maximum of 48 hours per week including overtime, with overtime voluntary and
+              capped at 12 hours. Rest periods of 24 consecutive hours are guaranteed in every seven-day
+              period. Interpreters engaged on assignment are covered by the same limit; scheduling is monitored
+              weekly against the working-time register.</p>
+            <div class="cites">
+              <span class="cl">Evidence</span>
+              <span class="doc">LAB-POL-02 §3.1</span>
+              <span class="doc">LAB-POL-02 §3.4</span>
+              <span class="doc">REG-WT-01</span>
+            </div>
+            <div class="meter-row">
+              <div class="meter">
+                <span class="meter-track" role="img" aria-label="Confidence 94 out of 100">
+                  <span class="meter-fill" style="width:94%"></span>
+                </span>
+                <span class="meter-val tnum">94</span>
+              </div>
+              <span class="badge badge-ok"><span class="dot" aria-hidden="true"></span>Direct clause match</span>
+              <span class="meter-note">Evidence reviewed 12 Aug 2026 · no human edit required</span>
+            </div>
+          </div>
+        </div>
+        <p class="small muted rv" style="margin-top:18px">Illustrative. The same object is written back into the
+          buyer's own file — and kept, so the next buyer asking the same thing in a different shape reads it
+          rather than reruns it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 01 PROBLEM ═════════ -->
+<section id="problem" aria-labelledby="problem-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">01</p><p class="sec-label">The problem</p>
+      </div>
+      <div class="col-main">
+        <h2 id="problem-title" class="rv">The same answers, retyped forever.</h2>
+        <p class="sec-lead rv">Buyers push supplier risk, ESG, labour and security questionnaires through Coupa
+          Risk Assess, Avetta, EcoVadis, Sedex, Ariba and their own bespoke portals. The answers already exist
+          inside the supplier's own policy library. A human still spends days finding them, rewriting them into
+          whatever grid that buyer sent, and hand-typing the document references.</p>
+
+        <div class="stats" style="margin-top:60px">
+          <div class="stat rv">
+            <p class="num tnum">15&#8211;40<span class="unit">hrs</span></p>
+            <p class="caption">Skilled compliance time to complete a single questionnaire.</p>
+            <p class="stag">Per assessment</p>
+          </div>
+          <div class="stat rv">
+            <p class="num tnum">5&#8211;15</p>
+            <p class="caption">Assessments one supplier answers across its buyer network each year.</p>
+            <p class="stag">Per year</p>
+          </div>
+          <div class="stat rv">
+            <p class="num tnum">60&#8211;250</p>
+            <p class="caption">Questions in a single assessment, in a format unique to that buyer.</p>
+            <p class="stag">Per assessment</p>
+          </div>
+          <div class="stat rv">
+            <p class="num tnum">~160<span class="unit">hrs</span></p>
+            <p class="caption">Compliance time consumed per supplier, per year — a month of skilled work.</p>
+            <p class="stag">A month, annually</p>
+          </div>
+        </div>
+
+        <div class="prose rv" style="margin-top:60px">
+          <p>The wasted hours are the visible cost. The quieter one is drift. What you told one buyer about
+            your maximum working week is not quite what you told the next. The subcontracting answer you gave
+            in March was written by someone who has since left. Each questionnaire is answered from memory,
+            from a stale copy of last year's file, or from whichever version of the policy happened to be
+            open.</p>
+        </div>
+
+        <div class="drift rv">
+          <div class="drift-q">
+            <span class="k">The same question, asked by two buyers</span>
+            State the maximum number of working hours permitted per week, including overtime.
+          </div>
+          <div class="drift-grid">
+            <div class="drift-col">
+              <p class="who"><span>SUBMITTED &#183; BUYER A</span><span>14 MAR 2026</span></p>
+              <p class="said">“A maximum of 48 hours per week including overtime.”</p>
+              <p class="src">Answered by the operations lead, from the policy draft.</p>
+            </div>
+            <div class="drift-col">
+              <p class="who"><span>SUBMITTED &#183; BUYER B</span><span>02 JUL 2026</span></p>
+              <p class="said">“Up to 60 hours during peak demand periods, by agreement.”</p>
+              <p class="src">Answered by a colleague, from a scheduling spreadsheet.</p>
+            </div>
+          </div>
+          <div class="drift-note">
+            <span class="badge badge-warn">Contradiction</span>
+            <p>Both submissions are on file with enterprise buyers. Neither author saw the other. Nothing in
+              the process compares them — and nothing will, until an auditor or a buyer does it for you.</p>
+          </div>
+        </div>
+
+        <div class="prose rv" style="margin-top:52px">
+          <p>There is no single place where every answer your company has ever submitted sits next to every
+            other one, and no moment at which the contradiction surfaces. Inconsistency across submissions is
+            not an administrative annoyance. It is an audit exposure that grows with every questionnaire you
+            answer.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 02 INSIGHT ═════════ -->
+<section id="insight" class="band" aria-labelledby="insight-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">02</p><p class="sec-label">The insight</p>
+      </div>
+      <div class="col-main">
+        <p class="claim rv" id="insight-title">A questionnaire is not a form to fill in. It is a query against
+          your evidence.</p>
+
+        <div class="insight-body rv">
+          <p>Treat it as a form and every buyer is a new project: read the grid, hunt through the policy
+            folder, paraphrase, paste, chase the document reference, repeat. The work scales with the number of
+            buyers, and none of it accumulates.</p>
+          <p>Treat it as a query and the shape of the problem inverts. The company's policies, controls,
+            registers and records are structured once — not as files in a folder, but as a graph, resolved to
+            the clause, where each node knows what it asserts, what document it lives in, when it was last
+            reviewed and who owns it. Now a question is not a blank to be filled. It is a read:
+            <span class="em">what in this graph speaks to maximum working hours, and how strongly?</span></p>
+        </div>
+
+        <figure class="figure rv" style="margin:48px 0 0">
+          <figcaption class="figure-head">
+            <span>Figure 1 &#8212; Any format, one graph</span>
+            <span class="scrollhint">swipe &#8594;</span>
+          </figcaption>
+          <div class="figure-body">
+            <svg viewBox="0 0 940 250" role="img" aria-labelledby="fan-t fan-d">
+              <title id="fan-t">Many buyer formats, one evidence graph</title>
+              <desc id="fan-d">Four differently shaped buyer questionnaires converge on a single clause-level
+                evidence graph, which produces answers cited to the clause and gaps where no evidence exists.</desc>
+              <defs>
+                <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10 z" fill="var(--border-strong)"></path>
+                </marker>
+              </defs>
+              <g fill="none" stroke="var(--border-strong)" stroke-width="1">
+                <rect x="1" y="16" width="158" height="40" rx="6"></rect>
+                <rect x="1" y="72" width="158" height="40" rx="6"></rect>
+                <rect x="1" y="128" width="158" height="40" rx="6"></rect>
+                <rect x="1" y="184" width="158" height="40" rx="6"></rect>
+                <rect x="757" y="62" width="182" height="52" rx="6"></rect>
+                <rect x="757" y="140" width="182" height="52" rx="6"></rect>
+              </g>
+              <g fill="none" stroke="var(--border-strong)" stroke-width="1" marker-end="url(#a1)">
+                <path d="M159 36 Q 250 36 322 112"></path>
+                <path d="M159 92 Q 250 92 322 120"></path>
+                <path d="M159 148 Q 250 148 322 128"></path>
+                <path d="M159 204 Q 250 204 322 136"></path>
+                <path d="M600 112 Q 680 112 751 88"></path>
+                <path d="M600 136 Q 680 136 751 162"></path>
+              </g>
+              <rect x="330" y="52" width="264" height="146" rx="10" fill="none" stroke="var(--accent)"
+                    stroke-width="1" stroke-dasharray="4 4" opacity=".5"></rect>
+              <g stroke="var(--border-strong)" stroke-width="1" fill="none">
+                <path d="M372 150 L 420 122 L 470 156 L 520 118 L 556 148"></path>
+                <path d="M420 122 L 446 172 L 520 118"></path>
+                <path d="M372 150 L 446 172"></path>
+                <path d="M470 156 L 556 148"></path>
+              </g>
+              <g fill="var(--accent)">
+                <circle cx="372" cy="150" r="3.5"></circle>
+                <circle cx="420" cy="122" r="3.5"></circle>
+                <circle cx="470" cy="156" r="3.5"></circle>
+                <circle cx="520" cy="118" r="3.5"></circle>
+                <circle cx="556" cy="148" r="3.5"></circle>
+                <circle cx="446" cy="172" r="3.5"></circle>
+              </g>
+              <g font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="12.5" fill="var(--ink)">
+                <text x="16" y="41">Coupa grid</text>
+                <text x="16" y="97">Avetta portal export</text>
+                <text x="16" y="153">EcoVadis module</text>
+                <text x="16" y="209">A buyer's own sheet</text>
+                <text x="773" y="84">Answers, cited to clause</text>
+                <text x="773" y="162">Gaps, where none exists</text>
+              </g>
+              <g font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11" fill="var(--label)">
+                <text x="773" y="101">confidence scored</text>
+                <text x="773" y="179">the document that closes it</text>
+                <text x="346" y="76" letter-spacing="0.1" fill="var(--accent)">EVIDENCE GRAPH · CLAUSE LEVEL</text>
+                <text x="346" y="222">one structure, read from any direction</text>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="figure-foot">The format is only the envelope. Once the facts are addressable, the
+            rendering is a translation problem.</figcaption>
+        </figure>
+
+        <div class="insight-body rv" style="margin-top:40px">
+          <p>The buyer's format stops mattering, because the format is only the envelope. Coupa's grid,
+            Avetta's portal, an EcoVadis module and a procurement manager's own spreadsheet are four different
+            renderings of overlapping questions about the same underlying facts. Once the facts are
+            addressable, the rendering is a translation problem — and translation is the cheap part.</p>
+        </div>
+
+        <p class="kicker rv">The asset was never the completed questionnaire. It was the structured evidence
+          underneath it — and every company that answers by hand throws that asset away, one submission at a
+          time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 03 HOW IT WORKS ═════════ -->
+<section id="how" aria-labelledby="how-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">03</p><p class="sec-label">How it works</p>
+      </div>
+      <div class="col-main">
+        <h2 id="how-title" class="rv">Three steps, and only one of them is yours.</h2>
+        <p class="sec-lead rv">You structure your evidence once. Everything after that is a read against it.</p>
+
+        <div class="steps rv" style="margin-top:52px">
+
+          <article class="step">
+            <div class="content">
+              <p class="idx">Step 01</p>
+              <h3>Build the evidence graph</h3>
+              <p>Your policies, procedures, registers, training records and certificates are ingested once and
+                structured to the clause — not summarised, not embedded and forgotten. Each clause keeps its
+                identity: the document it belongs to, its section, its version, its review date, its owner. A
+                working-hours limit in <span class="doc">LAB-POL-02 §3.1</span> is a distinct, addressable
+                fact, not a sentence buried in a PDF. This is the only step that costs you time, and you do it
+                once.</p>
+              <div class="step-tags">
+                <span class="tag">POLICIES</span><span class="tag">REGISTERS</span>
+                <span class="tag">TRAINING RECORDS</span><span class="tag">CERTIFICATES</span>
+              </div>
+            </div>
+            <div class="glyphbox" aria-hidden="true">
+              <svg viewBox="0 0 64 64" fill="none" stroke="var(--border-strong)" stroke-width="1.25">
+                <rect x="4" y="10" width="24" height="32" rx="3"></rect>
+                <path d="M9 18h14M9 24h14M9 30h9"></path>
+                <path d="M28 26 H 39"></path>
+                <path d="M44 16 L 52 24 L 44 34 L 52 44" stroke="var(--accent)"></path>
+                <g fill="var(--accent)" stroke="none">
+                  <circle cx="44" cy="16" r="3"></circle><circle cx="52" cy="24" r="3"></circle>
+                  <circle cx="44" cy="34" r="3"></circle><circle cx="52" cy="44" r="3"></circle>
+                </g>
+              </svg>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="content">
+              <p class="idx">Step 02</p>
+              <h3>Run any questionnaire</h3>
+              <p>Upload the buyer's file exactly as it arrived. The agent inspects the shape it has been sent —
+                a merged-cell workbook, a locked template, a portal export, a form nobody has ever seen — and
+                writes a parser for that specific file at request time. It maps each question onto the graph,
+                drafts the answer from your own evidence, and attaches the precise document and clause behind
+                every claim it makes. Nothing is asserted that does not trace back to a source.</p>
+              <div class="step-tags">
+                <span class="tag">XLSX</span><span class="tag">CSV</span><span class="tag">DOCX</span>
+                <span class="tag">PDF FORM</span><span class="tag">PORTAL EXPORT</span>
+              </div>
+            </div>
+            <div class="glyphbox" aria-hidden="true">
+              <svg viewBox="0 0 64 64" fill="none" stroke="var(--border-strong)" stroke-width="1.25">
+                <rect x="5" y="14" width="30" height="30" rx="3"></rect>
+                <path d="M5 24h30M5 34h30M15 14v30M25 14v30"></path>
+                <path d="M35 29 H 40"></path>
+                <g stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M50 21 L 45 29 L 50 37"></path>
+                  <path d="M56 21 L 61 29 L 56 37"></path>
+                </g>
+              </svg>
+            </div>
+          </article>
+
+          <article class="step">
+            <div class="content">
+              <p class="idx">Step 03</p>
+              <h3>Review and return</h3>
+              <p>Every draft carries a confidence score derived from evidence strength — how directly the
+                clause answers the question, how current the document is, how much interpretation was required.
+                Strong answers pass through. Weak ones are surfaced for a human, so review time goes where
+                judgment is actually needed instead of being spread evenly across 200 questions. The finished
+                set is written back into the buyer's original file, formatting intact, ready to return.</p>
+              <div class="step-tags">
+                <span class="tag">CONFIDENCE SCORED</span><span class="tag">HUMAN IN THE LOOP</span>
+                <span class="tag">NATIVE WRITE-BACK</span>
+              </div>
+            </div>
+            <div class="glyphbox" aria-hidden="true">
+              <svg viewBox="0 0 64 64" fill="none" stroke="var(--border-strong)" stroke-width="1.25">
+                <circle cx="24" cy="24" r="13"></circle>
+                <path d="M18 24 l 4.5 4.5 L 31 19" stroke="var(--accent)" stroke-width="1.75"
+                      stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M42 20 h 16 M42 28 h 10"></path>
+                <rect x="8" y="46" width="48" height="6" rx="3"></rect>
+                <rect x="8" y="46" width="34" height="6" rx="3" fill="var(--accent)" stroke="none"></rect>
+              </svg>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 04 REFUSAL ═════════ -->
+<section id="refusal" aria-labelledby="refusal-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">04</p><p class="sec-label">The refusal</p>
+      </div>
+      <div class="col-main">
+        <h2 id="refusal-title" class="rv" style="max-width:22ch">The most valuable thing it produces is the
+          answer it won't give.</h2>
+        <p class="sec-lead rv">A system that generates fluent compliance prose is a liability. When there is no
+          evidence, Compliance Passport does not compose a plausible sentence. It files a gap. Here is what
+          that looks like on a real question.</p>
+
+        <div class="example rv">
+          <div class="ex-row ex-q">
+            <p class="ex-label">Question 41 of 53 · Coupa Risk Assess · Information security</p>
+            <p class="ex-question">Does your organisation hold a current ISO/IEC 27001 certification? Provide
+              the certificate number, issuing body and expiry date.</p>
+            <p class="ex-sub">Supplier does not hold ISO/IEC 27001.</p>
+          </div>
+
+          <div class="ex-row">
+            <p class="ex-label">What a generative tool returns</p>
+            <p class="rejected"><span class="strike">“Yes — we maintain a comprehensive information security
+              management system aligned with ISO 27001 principles, including documented access control,
+              incident response and asset management procedures.”</span></p>
+            <p class="ex-sub">Fluent, reassuring, and an unsupported claim in a document the buyer will keep on
+              file. Not returned.</p>
+          </div>
+
+          <div class="ex-row gap-panel">
+            <div class="gap-head">
+              <span class="badge badge-gap"><span class="dot" aria-hidden="true"></span>Gap</span>
+              <span class="gap-id">GAP-014</span>
+              <span class="small muted">No answer submitted</span>
+            </div>
+
+            <dl class="kv">
+              <dt>Why no answer</dt>
+              <dd>No evidence in the library supports a certification claim. The closest related evidence is
+                <span class="doc">INFOSEC-POL-01 §4.2</span> (access control) and
+                <span class="doc">INFOSEC-POL-01 §6.1</span> (incident response) — internal policy, which is
+                not certification and cannot be presented as such.</dd>
+
+              <dt>What honestly can be said</dt>
+              <dd>Not certified. Documented information security policy in force since 12 August 2026, owner
+                named, review cycle annual. Offered to the reviewer as a truthful partial response, clearly
+                labelled as policy rather than certification.</dd>
+
+              <dt>Document that closes it</dt>
+              <dd>ISO/IEC 27001 certificate issued by an accredited certification body, with the accompanying
+                Statement of Applicability.</dd>
+
+              <dt>Also unblocks</dt>
+              <dd>
+                <ul class="unblocks">
+                  <li><span class="qid">Q42</span><span>Provide the scope statement of your certification.</span></li>
+                  <li><span class="qid">Q43</span><span>Date of your most recent external surveillance audit.</span></li>
+                  <li><span class="qid">Q47</span><span>Is your information security programme independently
+                    audited by a third party?</span></li>
+                  <li><span class="qid">Q51</span><span>Attach evidence of certification for any subcontractor
+                    handling buyer data.</span></li>
+                </ul>
+                <p class="small muted" style="margin-top:16px">One document. Five questions, in this assessment
+                  alone — and in every assessment after it.</p>
+              </dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="prose rv" style="margin-top:52px">
+          <p>Every gap recorded this way accumulates into a gap register: an honest, continuously maintained
+            list of what the company cannot yet claim, ranked by how many questions each missing artifact is
+            blocking across every buyer who has ever asked.</p>
+        </div>
+
+        <p class="punch rv"><span class="em">This is not a tool that makes you look compliant.</span> It is a
+          tool that tells you what you can honestly claim today, and hands you the roadmap for the rest —
+          generated for free, as a by-product of answering.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 05 ARCHITECTURE ═════════ -->
+<section id="architecture" class="band" aria-labelledby="arch-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">05</p><p class="sec-label">Architecture</p>
+      </div>
+      <div class="col-main">
+        <h2 id="arch-title" class="rv">The runtime is structural, not incidental.</h2>
+        <p class="sec-lead rv">Every buyer's file has a different shape, so no universal parser exists and none
+          can be written in advance. The agent authors a parser at request time — which means model-written
+          code is about to execute against confidential compliance documents. That cannot happen inside the
+          application process.</p>
+
+        <figure class="figure rv" style="margin:48px 0 0">
+          <figcaption class="figure-head">
+            <span>Figure 2 &#8212; Execution flow for one run</span>
+            <span class="scrollhint">swipe &#8594;</span>
+          </figcaption>
+          <div class="figure-body">
+            <svg viewBox="0 0 940 300" role="img" aria-labelledby="fig1-t fig1-d">
+              <title id="fig1-t">Execution flow for one questionnaire run</title>
+              <desc id="fig1-d">The buyer's questionnaire file and the supplier's evidence graph are passed
+                into a disposable sandbox created for that run. Inside the sandbox the agent writes a parser,
+                executes it against the file, and produces drafted answers with clause citations plus gap
+                records. Those results leave the sandbox for review and write-back into the buyer's original
+                file. The sandbox is destroyed on completion.</desc>
+              <defs>
+                <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10 z" fill="var(--border-strong)"></path>
+                </marker>
+              </defs>
+              <g fill="none" stroke="var(--border-strong)" stroke-width="1">
+                <rect x="1" y="46" width="176" height="60" rx="8"></rect>
+                <rect x="1" y="152" width="176" height="60" rx="8"></rect>
+                <rect x="270" y="70" width="190" height="56" rx="6"></rect>
+                <rect x="486" y="70" width="184" height="56" rx="6"></rect>
+                <rect x="270" y="162" width="400" height="56" rx="6"></rect>
+                <rect x="730" y="106" width="208" height="60" rx="8"></rect>
+              </g>
+              <rect x="250" y="16" width="440" height="230" rx="10" fill="none" stroke="var(--accent)"
+                    stroke-width="1" stroke-dasharray="4 4" opacity=".55"></rect>
+              <g stroke="var(--border-strong)" stroke-width="1" fill="none" marker-end="url(#a2)">
+                <path d="M177 76 L 244 76"></path>
+                <path d="M177 182 L 210 182 L 210 98 L 244 98"></path>
+                <path d="M460 98 L 480 98"></path>
+                <path d="M578 126 L 578 156"></path>
+                <path d="M670 190 L 706 190 L 706 136 L 724 136"></path>
+              </g>
+              <g font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="13" fill="var(--ink)">
+                <text x="18" y="72">Buyer's questionnaire</text>
+                <text x="18" y="178">Evidence graph</text>
+                <text x="286" y="96">Agent writes a parser</text>
+                <text x="502" y="96">Parser executes</text>
+                <text x="286" y="188">Drafted answers · citations · gaps</text>
+                <text x="746" y="132">Review &amp; write-back</text>
+              </g>
+              <g font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11.5" fill="var(--label)">
+                <text x="18" y="92">any format, unseen</text>
+                <text x="18" y="198">policies · registers · records</text>
+                <text x="286" y="114">written for this file</text>
+                <text x="502" y="114">against this file only</text>
+                <text x="286" y="206">confidence scored on evidence strength</text>
+                <text x="746" y="152">buyer's original file, intact</text>
+                <text x="266" y="40" letter-spacing="0.1" fill="var(--accent)">DISPOSABLE SANDBOX — ONE PER RUN</text>
+                <text x="266" y="272">Destroyed on completion. Nothing persists, nothing is shared.</text>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="figure-foot">The sandbox boundary is the trust boundary. Everything the model
+            writes lives and dies inside it.</figcaption>
+        </figure>
+
+        <figure class="figure rv" style="margin:24px 0 0">
+          <figcaption class="figure-head">
+            <span>Figure 3 &#8212; Isolation, per run</span>
+            <span class="scrollhint">swipe &#8594;</span>
+          </figcaption>
+          <div class="figure-body">
+            <svg viewBox="0 0 940 215" role="img" aria-labelledby="fig2-t fig2-d">
+              <title id="fig2-t">One sandbox per run</title>
+              <desc id="fig2-d">Three concurrent runs, two of them for the same supplier, each execute in their
+                own sandbox lane from creation through execution to destruction. No lane shares a process with
+                another.</desc>
+              <g font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="10.5" fill="var(--label)" letter-spacing="0.1">
+                <text x="212" y="22">CREATED</text>
+                <text x="486" y="22">EXECUTES</text>
+                <text x="770" y="22">DESTROYED</text>
+              </g>
+              <g stroke="var(--border)" stroke-width="1"><path d="M0 34 H 940"></path></g>
+              <g font-family="ui-monospace, 'SF Mono', Menlo, monospace" font-size="10.5" fill="var(--ink-2)" letter-spacing="0.06">
+                <text x="0" y="72">RUN 4813 · SUPPLIER A</text>
+                <text x="0" y="122">RUN 4814 · SUPPLIER B</text>
+                <text x="0" y="172">RUN 4815 · SUPPLIER A</text>
+              </g>
+              <g fill="none" stroke="var(--accent)" stroke-width="1" stroke-dasharray="4 4" opacity=".5">
+                <rect x="180" y="54" width="640" height="28" rx="14"></rect>
+                <rect x="180" y="104" width="640" height="28" rx="14"></rect>
+                <rect x="180" y="154" width="640" height="28" rx="14"></rect>
+              </g>
+              <g stroke="var(--border-strong)" stroke-width="1" fill="var(--bg)">
+                <circle cx="226" cy="68" r="3.5"></circle><circle cx="500" cy="68" r="3.5"></circle><circle cx="784" cy="68" r="3.5"></circle>
+                <circle cx="226" cy="118" r="3.5"></circle><circle cx="500" cy="118" r="3.5"></circle><circle cx="784" cy="118" r="3.5"></circle>
+                <circle cx="226" cy="168" r="3.5"></circle><circle cx="500" cy="168" r="3.5"></circle><circle cx="784" cy="168" r="3.5"></circle>
+              </g>
+              <g font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif" font-size="11.5" fill="var(--label)">
+                <text x="836" y="72">no residue</text>
+                <text x="836" y="122">no residue</text>
+                <text x="836" y="172">no residue</text>
+                <text x="180" y="206">Same supplier, two runs, two sandboxes. No shared process for anything to cross.</text>
+              </g>
+            </svg>
+          </div>
+          <figcaption class="figure-foot">Separation is not a permission check somewhere in the request path —
+            there is simply no shared surface.</figcaption>
+        </figure>
+
+        <div class="arch-points">
+          <div class="pt rv">
+            <h3>A sandbox per run, not per tenant</h3>
+            <p>Each run gets its own disposable environment, created for that request and destroyed when it
+              completes. Model-authored code never touches the application process, and nothing it writes
+              outlives the run that produced it.</p>
+          </div>
+          <div class="pt rv">
+            <h3>Isolation as a consequence, not a feature</h3>
+            <p>Because the sandbox exists only for one run, one supplier's policy library is never co-resident
+              with another's. There is no shared process for a leak to cross.</p>
+          </div>
+          <div class="pt rv">
+            <h3>Adaptation is the product</h3>
+            <p>A fixed set of connectors would cover the portals and fail on the spreadsheet a procurement
+              manager built last Tuesday. Writing the parser per request is what makes “any format” a real
+              claim rather than a roadmap item.</p>
+          </div>
+          <div class="pt rv">
+            <h3>The execution log is evidence too</h3>
+            <p>Each run leaves a record of what was parsed, what was read from the graph, what was drafted and
+              what was refused. That log is the beginning of a defensible audit trail, not a debugging
+              artifact.</p>
+          </div>
+        </div>
+
+        <div class="runtime rv">
+          <span class="k">Built on</span><span class="v">SoftwareForge</span>
+          <span class="k">Executed in</span><span class="v">Daytona sandboxes</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 06 PLATFORM ═════════ -->
+<section id="platform" aria-labelledby="platform-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">06</p><p class="sec-label">The platform</p>
+      </div>
+      <div class="col-main">
+        <h2 id="platform-title" class="rv">Answering is the entry point, not the product.</h2>
+        <p class="sec-lead rv">Once every answer, its evidence and its gaps live in one structured place, the
+          questionnaire stops being the unit of work. The graph becomes the compliance record of the company —
+          and it can be read forwards, backwards, and from the buyer's side.</p>
+
+        <div class="horizons rv" style="margin-top:60px">
+
+          <div class="horizon">
+            <div class="horizon-head"><h3>Now</h3><span class="badge badge-accent">Shipping</span></div>
+            <p class="note">Answer any assessment from your own evidence, honestly.</p>
+            <ul>
+              <li><span class="t">Evidence library with clause-level provenance</span><span class="d">Policies, registers and records structured to the clause, each with document, section, version and owner.</span></li>
+              <li><span class="t">Adaptive ingestion of any questionnaire format</span><span class="d">A parser written per file, at request time — portal exports, locked templates, bespoke spreadsheets.</span></li>
+              <li><span class="t">Grounded drafting with citation validation and refusal</span><span class="d">Every claim traced to a clause; no evidence means no answer.</span></li>
+              <li><span class="t">Gap register</span><span class="d">What you cannot yet claim, ranked by how many questions each missing artifact blocks.</span></li>
+              <li><span class="t">Write-back into the buyer's native file</span><span class="d">Returned in the shape it arrived, formatting intact.</span></li>
+            </ul>
+          </div>
+
+          <div class="horizon">
+            <div class="horizon-head"><h3>Next</h3><span class="badge badge-neutral">In design</span></div>
+            <p class="note">Make the answers accountable to each other, and to time.</p>
+            <ul>
+              <li><span class="t">Answer memory</span><span class="d">Every answer ever submitted, versioned by buyer and by date — one place where the company's own record lives.</span></li>
+              <li><span class="t">Cross-buyer consistency detection</span><span class="d">Flag where this run's answer contradicts what you told a previous buyer, before it is submitted rather than after it is discovered.</span></li>
+              <li><span class="t">Evidence freshness</span><span class="d">Policies carry review dates. Warn when an answer now rests on a stale document, and identify every submitted answer affected.</span></li>
+              <li><span class="t">Gap remediation tracking</span><span class="d">Owners and target dates on each gap. Closing one automatically unlocks the questions it was blocking.</span></li>
+            </ul>
+          </div>
+
+          <div class="horizon">
+            <div class="horizon-head"><h3>Later</h3><span class="badge badge-neutral">Direction</span></div>
+            <p class="note">The graph as shared infrastructure between supplier and buyer.</p>
+            <ul>
+              <li><span class="t">Direct connectors to the assessment networks</span><span class="d">Coupa, Avetta, EcoVadis, Sedex and Ariba — ingest assessments by API instead of by file.</span></li>
+              <li><span class="t">Continuous assurance</span><span class="d">When a policy is revised, identify which previously submitted answers are now inaccurate and notify the affected buyers.</span></li>
+              <li><span class="t">Multi-entity workspaces</span><span class="d">Groups, agencies and BPOs answering on behalf of several legal entities, each with its own evidence and its own truth.</span></li>
+              <li><span class="t">The buyer side</span><span class="d">Procurement teams grading incoming submissions and detecting unsupported claims — the same graph, read from the other end.</span></li>
+              <li><span class="t">Full provenance export</span><span class="d">Every answer's chain of evidence, plus the sandbox execution log, as a defensible record for an external auditor.</span></li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 07 WHO IT IS FOR ═════════ -->
+<section id="who" aria-labelledby="who-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">07</p><p class="sec-label">Who it is for</p>
+      </div>
+      <div class="col-main">
+        <h2 id="who-title" class="rv">Anyone who sells to enterprise and gets assessed.</h2>
+
+        <div class="sectors" style="margin-top:44px">
+          <div class="sector rv"><p class="n">01</p><p class="name">Staffing and BPO</p><p class="what">Labour standards, subcontracting, worker welfare</p></div>
+          <div class="sector rv"><p class="n">02</p><p class="name">Healthcare services</p><p class="what">Credentialing, privacy, incident reporting</p></div>
+          <div class="sector rv"><p class="n">03</p><p class="name">Logistics</p><p class="what">Driver hours, subcontractor chains, ESG</p></div>
+          <div class="sector rv"><p class="n">04</p><p class="name">Manufacturing</p><p class="what">Supply chain due diligence, environmental reporting</p></div>
+          <div class="sector rv"><p class="n">05</p><p class="name">Professional services</p><p class="what">Ethics, conflicts of interest, data handling</p></div>
+          <div class="sector rv"><p class="n">06</p><p class="name">Software vendors</p><p class="what">Security review, subprocessors, resilience</p></div>
+        </div>
+
+        <div class="callout rv">
+          <p>There is already a category of tools that automate <span class="em">security</span> questionnaires
+            for software companies. They are built around the assumption that the respondent is a SaaS vendor
+            answering SIG, CAIQ or a SOC 2 mapping.</p>
+          <p>That leaves out most of the companies actually being assessed. The labour, ethics, ESG and
+            supplier risk assessments pushed at services suppliers — the staffing firm, the interpreter
+            marketplace, the logistics operator, the facilities contractor — go through Coupa Risk Assess,
+            Avetta, EcoVadis and Sedex, ask about working hours and subcontracting and grievance procedures
+            rather than encryption at rest, and are answered by hand.
+            <span class="em">That work is unserved.</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 08 ORIGIN ═════════ -->
+<section id="origin" aria-labelledby="origin-title">
+  <div class="shell">
+    <div class="cols">
+      <div class="col-side rv">
+        <p class="sec-num">08</p><p class="sec-label">Origin</p>
+      </div>
+      <div class="col-main">
+        <h2 id="origin-title" class="rv">Built by the person with the problem.</h2>
+
+        <ul class="timeline rv" style="margin-top:40px">
+          <li class="mark">
+            <p class="when">August 2026</p>
+            <p class="what">A formal ethics and labour compliance programme adopted — five policies, four
+              registers, a training curriculum.</p>
+          </li>
+          <li>
+            <p class="when">Days later</p>
+            <p class="what">The buyer's supplier risk assessment arrives through Coupa. Fifty-three
+              questions.</p>
+          </li>
+          <li>
+            <p class="when">And then</p>
+            <p class="what">The next buyer sends a different file, asking for the same facts in a different
+              order.</p>
+          </li>
+        </ul>
+
+        <div class="origin-body rv">
+          <p>I run a multilingual BPO and interpreter marketplace. We are a supplier to a large staffing
+            enterprise.</p>
+          <p>In August 2026 we adopted a formal ethics and labour compliance programme — five policies, four
+            registers, a training curriculum. Weeks of work, properly done, all of it written down.</p>
+          <p>Days later the buyer's supplier risk assessment arrived through Coupa. Fifty-three questions.
+            Every single answer already existed in documents we had just finished writing. It still would have
+            taken two days: find the clause, rewrite it to fit their grid, type the document reference, move to
+            the next question, discover the next question is asking the same thing in a different way.</p>
+          <p>And this was the first buyer. The next one would send a different file and ask for the same facts
+            in a different order, and we would do it all again from scratch.</p>
+        </div>
+
+        <p class="pullquote rv">That is the whole idea. The answers were an asset we were about to throw
+          away.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CLOSE ═════════ -->
+<section class="close" aria-labelledby="close-title">
+  <div class="shell">
+    <p class="close-line rv" id="close-title">Your compliance answers are an asset. Answer it once. Answer it
+      everywhere.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-foot">
+  <div class="shell">
+    <div class="foot-grid">
+      <div>
+        <span class="wordmark"><span class="glyph" aria-hidden="true"></span>Compliance Passport</span>
+        <p class="foot-note">Structured evidence, cited answers, and an honest register of what you cannot yet
+          claim.</p>
+      </div>
+      <div>
+        <h4>The argument</h4>
+        <ul class="foot-links">
+          <li><a href="#problem">The problem</a></li>
+          <li><a href="#insight">The insight</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#refusal">The refusal</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>The company</h4>
+        <ul class="foot-links">
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#platform">Platform</a></li>
+          <li><a href="#who">Who it is for</a></li>
+          <li><a href="#origin">Origin</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>BUILT ON SOFTWAREFORGE · EXECUTED IN DAYTONA SANDBOXES</span>
+      <span>VISION DOCUMENT · 2026</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var items = Array.prototype.slice.call(document.querySelectorAll('.rv'));
+
+  function show(el, delay){
+    if (delay) el.style.transitionDelay = delay + 'ms';
+    el.classList.add('in');
+  }
+  items.forEach(function(el, i){
+    if (el.getBoundingClientRect().top < window.innerHeight * 0.96) show(el, Math.min(i,6)*50);
+  });
+  function revealAll(){ items.forEach(function(el){ el.classList.add('in'); }); }
+  window.addEventListener('load', function(){
+    items.forEach(function(el, i){
+      if (el.getBoundingClientRect().top < window.innerHeight) show(el, Math.min(i,6)*50);
+    });
+  });
+  window.setTimeout(revealAll, 1200);
+
+  if ('IntersectionObserver' in window && !reduce) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (!e.isIntersecting) return;
+        var sibs = Array.prototype.slice.call(e.target.parentNode.children).filter(function(n){
+          return n.classList && n.classList.contains('rv');
+        });
+        var i = Math.min(sibs.indexOf(e.target), 5);
+        show(e.target, i > 0 ? i * 60 : 0);
+        io.unobserve(e.target);
+      });
+    }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 });
+    items.forEach(function(el){ io.observe(el); });
+  } else {
+    items.forEach(function(el){ el.classList.add('in'); });
+  }
+
+  var bar   = document.getElementById('progress');
+  var head  = document.getElementById('head');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var secs  = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  var ticking = false;
+
+  function update(){
+    ticking = false;
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var y = window.scrollY;
+    if (bar) bar.style.width = (max > 0 ? Math.min(100, Math.max(0, y / max * 100)) : 0) + '%';
+    if (head) head.classList.toggle('stuck', y > 8);
+
+    var probe = y + window.innerHeight * 0.32, active = -1;
+    secs.forEach(function(s, i){ if (s && s.offsetTop <= probe) active = i; });
+    links.forEach(function(a, i){
+      if (i === active) { a.classList.add('active'); a.setAttribute('aria-current','true'); }
+      else { a.classList.remove('active'); a.removeAttribute('aria-current'); }
+    });
+  }
+  function onScroll(){ if (!ticking) { ticking = true; window.requestAnimationFrame(update); } }
+
+  window.addEventListener('scroll', onScroll, { passive:true });
+  window.addEventListener('resize', onScroll, { passive:true });
+  update();
+})();
+</script>
+</body>
+</html>

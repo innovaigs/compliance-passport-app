@@ -1,0 +1,47 @@
+# --- Python -----------------------------------------------------------------
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# --- Secrets (never commit) --------------------------------------------------
+env.sh
+.env
+.env.local
+*.pem
+*.key
+
+# --- Databases ---------------------------------------------------------------
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# --- Runtime artefacts -------------------------------------------------------
+uploads/
+exports/
+
+# --- Node / frontend ---------------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# --- Test / tooling caches ---------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.forge/
+
+# --- OS ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+
+# --- Archives ----------------------------------------------------------------
+*.tar.gz
+*.zip
+*.log
