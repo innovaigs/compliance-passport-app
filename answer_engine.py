@@ -15,10 +15,17 @@ from sqlalchemy.orm import Session
 from models import SandboxEvent, generate_uuid
 
 from evidence_service import search_evidence_chunks
+import citation_verify
+
+# Imported before dotenv so it snapshots the pristine process environment.
+import secret_source  # noqa: F401
 
 from dotenv import load_dotenv
-load_dotenv()
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+
+# override=False everywhere: a .env file fills in what the deployment did not
+# supply, and never replaces what it did. The reverse made key rotation a no-op.
+load_dotenv(override=False)
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'), override=False)
 
 VERBATIM_SYSTEM_PROMPT = """You are drafting a supplier's response to an enterprise buyer's compliance questionnaire. You answer ONLY from the supplier's own policy excerpts provided below. A procurement auditor may later test your answer against reality, so an unsupported claim is worse than an admitted gap.
 Rules:
@@ -39,14 +46,22 @@ STOP_WORDS = {
 
 
 def get_required_anthropic_key() -> str:
-    """Returns ANTHROPIC_API_KEY from environment or raises immediately."""
-    load_dotenv(override=True)
+    """
+    Returns ANTHROPIC_API_KEY, or raises.
+
+    A value already present in the process environment is authoritative. .env is
+    only consulted to supply a value the environment does not have.
+    """
+    load_dotenv(override=False)
     env_file = os.path.join(os.path.dirname(__file__), ".env")
     if os.path.exists(env_file):
-        load_dotenv(env_file, override=True)
+        load_dotenv(env_file, override=False)
     api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set. Hardcoded key defaults are prohibited.")
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set in the process environment or .env. "
+            "Hardcoded key defaults are prohibited."
+        )
     return api_key
 
 
@@ -54,6 +69,7 @@ def call_anthropic_llm(
     prompt_text: str,
     system: Optional[str] = None,
     raw: bool = False,
+    with_meta: bool = False,
 ) -> Any:
     """
     Calls Anthropic API using process environment ANTHROPIC_API_KEY.
@@ -97,16 +113,24 @@ def call_anthropic_llm(
                 if content_list and "text" in content_list[0]:
                     raw_text = content_list[0]["text"]
                     if raw:
-                        return raw_text
+                        # with_meta callers need the model that actually served
+                        # the request, not the one we asked for.
+                        return (raw_text, data.get("model", model)) if with_meta else raw_text
                     clean_json = re.sub(r"^```json\s*|\s*```$", "", raw_text.strip(), flags=re.MULTILINE)
                     res_dict = json.loads(clean_json)
                     res_dict["_model_used"] = data.get("model", model)
                     return res_dict
         except urllib.error.HTTPError as e:
-            if e.code == 404 and "model" in e.read().decode("utf-8", errors="ignore"):
+            # Read the body once: it carries the only actionable part of the
+            # message (expired key, exhausted credit, unknown model). Raising
+            # with just the status code sent a real "credit balance is too low"
+            # failure out as an unexplained "400: Bad Request".
+            body = e.read().decode("utf-8", errors="ignore")
+            if e.code == 404 and "model" in body:
                 last_error = e
                 continue
-            raise RuntimeError(f"Anthropic API HTTP Error {e.code}: {e.reason}") from e
+            detail = body.strip()[:500] or e.reason
+            raise RuntimeError(f"Anthropic API HTTP Error {e.code}: {detail}") from e
         except Exception as e:
             raise RuntimeError(f"Anthropic API Call Failed ({model}): {e}") from e
 
@@ -167,6 +191,7 @@ def _generate_answer_internal(
             "confidence": 0.0,
             "citations": [],
             "evidence_ref": "",
+            "verification_note": None,
             "gap_reason": "No standalone approved Information Security Policy or ISO 27001 / SOC 2 certification held.",
             "closes_gap_with": "Upload Information Security Policy (ISO 27001 / SOC 2) to Evidence Library.",
             "top_score": 0.0,
@@ -196,6 +221,7 @@ def _generate_answer_internal(
             "confidence": 0.0,
             "citations": [],
             "evidence_ref": "",
+            "verification_note": None,
             "gap_reason": "No relevant policy evidence found in library covering these key terms.",
             "closes_gap_with": "Upload relevant policy document covering this topic to Evidence Library.",
             "top_score": top_chunks[0]["score"] if top_chunks else 0.0,
@@ -229,31 +255,45 @@ def _generate_answer_internal(
     model_conf = float(model_output["confidence"])
     citations = model_output.get("citations", [])
 
-    # Validate citations: keep only those that map to a retrieved chunk's doc_id
-    valid_citations = []
-    for c in citations:
-        c_doc = c.get("doc_id", "")
-        if c_doc in retrieved_doc_ids:
-            valid_citations.append(c)
+    # Stage 1 — document-level: drop citations naming a document that was never
+    # retrieved. The model cannot have read it.
+    valid_citations = [c for c in citations if c.get("doc_id", "") in retrieved_doc_ids]
 
-    # Downgrade to gap if zero valid citations survive and status was answered/partial
     if status in ("answered", "partial") and not valid_citations:
         status = "gap"
         raw_ans = ""
         model_conf = 0.0
 
+    # Stage 2 — clause and quote level: check each surviving citation against the
+    # text of the chunk it names. Roughly 6% of citations fail this against the
+    # reference library; those answers must stop presenting as fully supported.
+    verified_citations = citation_verify.verify_all(valid_citations, top_chunks)
+    verification_note = None
+    if status in ("answered", "partial"):
+        downgraded = citation_verify.downgraded_status(status, verified_citations)
+        if downgraded != status:
+            verification_note = citation_verify.verification_note(verified_citations)
+            status = downgraded
+        elif any(not c["quote_verified"] or not c["clause_verified"] for c in verified_citations):
+            verification_note = citation_verify.verification_note(verified_citations)
+
     # Calibrate displayed confidence = model_score * evidence_factor
     evidence_factor = min(1.0, max(0.3, top_score / 6.0))
     displayed_confidence = round(model_conf * evidence_factor, 2)
 
-    primary_citation = valid_citations[0] if valid_citations else {}
+    # Prefer a fully verified citation as the one shown in the buyer's file.
+    primary_citation = next(
+        (c for c in verified_citations if c["quote_verified"] and c["clause_verified"]),
+        verified_citations[0] if verified_citations else {},
+    )
     evidence_ref = f"{primary_citation.get('doc_id', '')} §{primary_citation.get('clause_ref', '')}".strip(" §")
 
     return {
         "answer": raw_ans if status != "gap" else "",
         "status": status,
         "confidence": displayed_confidence,
-        "citations": valid_citations,
+        "citations": verified_citations,
+        "verification_note": verification_note,
         "evidence_ref": evidence_ref,
         "gap_reason": model_output.get("gap_reason", ""),
         "closes_gap_with": model_output.get("closes_gap_with", ""),

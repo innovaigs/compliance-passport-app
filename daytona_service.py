@@ -40,10 +40,15 @@ from daytona import Daytona
 class SandboxRun:
     """One questionnaire run == one sandbox. Context manager so it always dies."""
 
-    def __init__(self, label: str = "compliance-passport", keep_alive: bool = False, on_event: Optional[Callable[[dict], None]] = None):
+    def __init__(self, label: str = "compliance-passport", keep_alive: bool = False,
+                 on_event: Optional[Callable[[dict], None]] = None,
+                 on_artifact: Optional[Callable[[dict], None]] = None):
         self.label = label
         self.keep_alive = keep_alive
         self.on_event = on_event
+        # Receives the full source of every program executed here, with its
+        # stdout and exit code. The codegen event carries only a preview.
+        self.on_artifact = on_artifact
         self._daytona = Daytona()          # reads DAYTONA_API_KEY
         self.sandbox = None
         self.log: list[dict[str, Any]] = []   # audit trail for the UI
@@ -71,23 +76,47 @@ class SandboxRun:
         self._note("shell", {"cmd": cmd, "exit": getattr(r, "exit_code", None)})
         return getattr(r, "result", "") or ""
 
-    def run_generated_code(self, code: str, purpose: str) -> str:
+    PHASE_BY_PURPOSE = {
+        "probe-structure": "probe",
+        "parse-questionnaire": "parser",
+        "parse-questionnaire-retry": "parser",
+        "write-answers": "writer",
+        "fill-questionnaire": "writer",
+    }
+
+    def run_generated_code(self, code: str, purpose: str, attempt: int = 1,
+                           origin: str = "model", model: Optional[str] = None) -> str:
         """Execute model-authored Python inside the sandbox and return its stdout."""
         r = self.sandbox.process.code_run(code)
         out = getattr(r, "result", "") or ""
-        agent = None
-        if purpose in ("parse-questionnaire", "parse-questionnaire-retry"):
-            agent = "parser"
-        elif purpose in ("write-answers", "fill-questionnaire"):
-            agent = "writer"
+        exit_code = getattr(r, "exit_code", None)
+        phase = self.PHASE_BY_PURPOSE.get(purpose, "parser")
+        agent = phase if phase in ("parser", "writer") else None
 
         self._note("codegen.executed", {
             "purpose": purpose,
             "lines": len(code.splitlines()),
-            "exit": getattr(r, "exit_code", None),
+            "exit": exit_code,
             "stdout_preview": out[:400],
             "agent": agent,
         })
+
+        if self.on_artifact:
+            try:
+                self.on_artifact({
+                    "phase": phase,
+                    "attempt": attempt,
+                    "origin": origin,
+                    "source": code,
+                    "line_count": len(code.splitlines()),
+                    "stdout": out,
+                    "exit_code": exit_code,
+                    "model": model,
+                    "sandbox_id": getattr(self.sandbox, "id", None),
+                })
+            except Exception as e:
+                print(f"SandboxRun artifact callback error: {e}")
+
         return out
 
     def put(self, local_path: str, remote_path: str) -> None:
@@ -171,7 +200,20 @@ Return ONLY executable Python code enclosed in ```python ``` codeblock or plain 
 
 PROMPT_WRITER = """You are an expert Python engineer.
 Write a self-contained Python script to fill the original questionnaire file at `/tmp/in/{filename}` using answers in `/tmp/in/answers.json`.
-Save the completed file to `/tmp/out/{stem}_COMPLETED{ext}`.
+
+`/tmp/in/answers.json` is a JSON **array** of objects (not an object/dict). Each element has exactly these keys:
+  - "row": integer, 1-based row index in the source file
+  - "sheet": string, worksheet name
+  - "answer_col": string, column letter to write the answer into, e.g. "D"
+  - "evidence_col": string, column letter to write the evidence reference into, e.g. "E"
+  - "answer": string, may be empty
+  - "evidence": string, may be empty
+
+Iterate the array directly. Do not call .items() on it.
+Write each element's "answer" into (sheet, row, answer_col) and its "evidence" into (sheet, row, evidence_col).
+Leave every other cell exactly as it is, preserving section header rows and formatting.
+
+Save the completed file to `/tmp/out/{stem}_COMPLETED{ext}` and create /tmp/out if needed.
 The script MUST print "OK /tmp/out/{stem}_COMPLETED{ext}" to stdout upon completion.
 
 Return ONLY executable Python code enclosed in ```python ``` codeblock or plain Python text."""
@@ -226,7 +268,9 @@ def ingest_questionnaire(
     run_sbx.exec_shell("mkdir -p /tmp/in /tmp/out")
     run_sbx.put(local_path, remote_in)
 
-    probe_out = run_sbx.run_generated_code(PROBE_CODE, purpose="probe-structure")
+    probe_out = run_sbx.run_generated_code(
+        PROBE_CODE, purpose="probe-structure", origin="builtin_probe"
+    )
     probe_match = re.search(r"\{.*\}", probe_out, re.DOTALL)
     structure = probe_match.group(0) if probe_match else "(probe failed; infer the layout defensively)"
     run_sbx.note("probe.structure", {"bytes": len(structure)})
@@ -239,7 +283,9 @@ def ingest_questionnaire(
         code = extract_python_code(llm_callable(prompt))
         # Use the canonical purpose labels so run_generated_code can tag the agent.
         purpose = "parse-questionnaire" if attempt == 1 else "parse-questionnaire-retry"
-        stdout = run_sbx.run_generated_code(code, purpose=purpose)
+        stdout = run_sbx.run_generated_code(
+            code, purpose=purpose, attempt=attempt, origin="model"
+        )
         questions = _extract_questions(stdout)
 
         if questions:
@@ -263,7 +309,12 @@ def ingest_questionnaire(
             "purpose": "parser",
             "reason": f"generated program failed {MAX_CODEGEN_ATTEMPTS} attempts",
         })
-        stdout = run_sbx.run_generated_code(fallback_code, purpose="parse-questionnaire-retry")
+        stdout = run_sbx.run_generated_code(
+            fallback_code,
+            purpose="parse-questionnaire-retry",
+            attempt=MAX_CODEGEN_ATTEMPTS + 1,
+            origin="fallback_template",
+        )
         questions = _extract_questions(stdout)
         if questions:
             return questions

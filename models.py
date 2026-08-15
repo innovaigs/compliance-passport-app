@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -94,6 +95,7 @@ class QuestionnaireRun(Base):
     exports: Mapped[List["ExportRecord"]] = relationship("ExportRecord", back_populates="run", cascade="all, delete-orphan")
     metrics: Mapped[List["ReviewerMetric"]] = relationship("ReviewerMetric", back_populates="run", cascade="all, delete-orphan")
     sandbox_events: Mapped[List["SandboxEvent"]] = relationship("SandboxEvent", back_populates="run", cascade="all, delete-orphan")
+    generated_artifacts: Mapped[List["GeneratedArtifact"]] = relationship("GeneratedArtifact", back_populates="run", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_run_status", "status"),
@@ -167,7 +169,12 @@ class RunAnswer(Base):
     run_id: Mapped[str] = mapped_column(String(36), ForeignKey("questionnaire_runs.id"), nullable=False)
     question_id: Mapped[str] = mapped_column(String(36), ForeignKey("run_questions.id"), nullable=False)
     evidence_status: Mapped[str] = mapped_column(String(50), nullable=False, default="gap")
-    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # Two columns, never both set. The model reports its confidence that a gap IS
+    # a gap; storing that in the same column as confidence in an answer meant a
+    # refused question could carry 1.0 and read as a confident answer.
+    answer_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    gap_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    verification_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     citation_document: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     citation_clause: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     quote: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -182,10 +189,20 @@ class RunAnswer(Base):
 
     run: Mapped["QuestionnaireRun"] = relationship("QuestionnaireRun", back_populates="answers")
     question: Mapped["RunQuestion"] = relationship("RunQuestion", back_populates="answer")
+    citations: Mapped[List["AnswerCitation"]] = relationship(
+        "AnswerCitation", back_populates="answer", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_ranswer_run_id", "run_id"),
         Index("idx_ranswer_question_id", "question_id"),
+        # Structural, not conventional: a refused question cannot carry answer
+        # confidence and an answered one cannot carry gap confidence.
+        CheckConstraint(
+            "(evidence_status = 'gap' AND answer_confidence IS NULL) OR "
+            "(evidence_status <> 'gap' AND gap_confidence IS NULL)",
+            name="ck_run_answers_one_confidence",
+        ),
     )
 
 
@@ -257,4 +274,68 @@ class SandboxEvent(Base):
 
     __table_args__ = (
         Index("idx_sevent_run_id", "run_id"),
+    )
+
+
+class GeneratedArtifact(Base):
+    """
+    A model-authored program, stored in full alongside what it actually did.
+
+    Exists so the review screen can show the real generated source rather than a
+    representative sample, and so an auditor can be handed the exact program that
+    read a customer's file. The 200-character preview on the codegen SandboxEvent
+    is a log line; this is the artifact.
+    """
+    __tablename__ = "generated_artifacts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    run_id: Mapped[str] = mapped_column(String(36), ForeignKey("questionnaire_runs.id"), nullable=False)
+    phase: Mapped[str] = mapped_column(String(20), nullable=False)  # probe | parser | writer
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    origin: Mapped[str] = mapped_column(String(20), nullable=False)  # model | builtin_probe | fallback_template
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    line_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    stdout: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    exit_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    sandbox_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=current_utc_time, nullable=False)
+
+    run: Mapped["QuestionnaireRun"] = relationship("QuestionnaireRun", back_populates="generated_artifacts")
+
+    __table_args__ = (
+        Index("idx_gartifact_run_id", "run_id"),
+    )
+
+
+class AnswerCitation(Base):
+    """
+    One citation on an answer, with the result of checking it against the source.
+
+    Replaces the three loose strings on RunAnswer. Carries a real foreign key to
+    the chunk the quote was actually found in, so the evidence chain can be
+    reconstructed after the fact — which was impossible before.
+    """
+    __tablename__ = "answer_citations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    run_id: Mapped[str] = mapped_column(String(36), ForeignKey("questionnaire_runs.id"), nullable=False)
+    answer_id: Mapped[str] = mapped_column(String(36), ForeignKey("run_answers.id"), nullable=False)
+    # Null only when the quote resolved to no chunk at all.
+    chunk_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    doc_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    clause_ref: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    quote: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    quote_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    clause_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    resolution: Mapped[str] = mapped_column(String(30), nullable=False, default="unresolved")
+    actual_clause_ref: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=current_utc_time, nullable=False)
+
+    answer: Mapped["RunAnswer"] = relationship("RunAnswer", back_populates="citations")
+
+    __table_args__ = (
+        Index("idx_acitation_answer_id", "answer_id"),
+        Index("idx_acitation_run_id", "run_id"),
     )

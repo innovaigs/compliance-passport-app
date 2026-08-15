@@ -1,0 +1,218 @@
+{
+  "description": "Real citation failures produced by claude-sonnet-4-5 against the Altura seed library, captured 2026-08-14 before verification was added. Each case is a citation the model emitted that does not survive verification against the source clause. Failures at this rate (~6% of answered/partial) are hard to manufacture; preserve them.",
+  "source": "run_answers rows from the three seed-questionnaire runs",
+  "total_answered_or_partial_at_capture": 77,
+  "failing_cases": 5,
+  "cases": [
+    {
+      "case_id": "cite-01",
+      "failure": "quote_absent_from_document",
+      "buyer": "Halberd Staffing Group",
+      "question_ref": "SR-2.1",
+      "question_text": "Do you prohibit forced labour, bonded labour and human trafficking in your operations and supply chain?",
+      "stored": {
+        "evidence_status": "answered",
+        "citation_document": "ALS-POL-001",
+        "citation_clause": "1.1",
+        "quote": "Altura Language Services LLC prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain.",
+        "draft_answer_excerpt": "Yes. Altura Language Services prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain. The prohibition is"
+      },
+      "expected": {
+        "quote_verified": false,
+        "clause_verified": true,
+        "resolution": "unresolved",
+        "actual_clause_ref_holding_quote": null,
+        "expected_status_after_verification": "partial",
+        "reason": "no citation is both quote_verified and clause_verified"
+      },
+      "source_of_truth": {
+        "cited_clause_content": "1.1 Altura Language Services LLC (\"Altura Language Services\", \"the Company\") prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain.",
+        "clause_refs_available_in_document": [
+          "1.1",
+          "1.2",
+          "1.3",
+          "2.1",
+          "2.2",
+          "2.3",
+          "2.4",
+          "3.1",
+          "3.2",
+          "3.3",
+          "3.4",
+          "4.1",
+          "4.2",
+          "5.1",
+          "5.2",
+          "6.1",
+          "6.2"
+        ],
+        "document_sha256": "2e2c41cd07f15b91"
+      },
+      "notes": "Model paraphrased ALS-POL-001 §1.1 into fluent prose and presented it as a quotation. Reads correctly, is not in the document. The failure the product exists to prevent."
+    },
+    {
+      "case_id": "cite-02",
+      "failure": "quote_absent_from_document",
+      "buyer": "Northwind Logistics Group",
+      "question_ref": "NW-B-01",
+      "question_text": "Confirm the prohibition of forced, bonded, indentured, prison and trafficked labour across all tiers of your operation.",
+      "stored": {
+        "evidence_status": "answered",
+        "citation_document": "ALS-POL-001",
+        "citation_clause": "1.1",
+        "quote": "Altura Language Services LLC prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain.",
+        "draft_answer_excerpt": "Yes. Altura Language Services prohibits all forms of forced, bonded, indentured, involuntary prison, and trafficked labour across its own operations and throughout its supply chain. The Company enforces the Employer Pays Principle, prohibit"
+      },
+      "expected": {
+        "quote_verified": false,
+        "clause_verified": true,
+        "resolution": "unresolved",
+        "actual_clause_ref_holding_quote": null,
+        "expected_status_after_verification": "partial",
+        "reason": "no citation is both quote_verified and clause_verified"
+      },
+      "source_of_truth": {
+        "cited_clause_content": "1.1 Altura Language Services LLC (\"Altura Language Services\", \"the Company\") prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain.",
+        "clause_refs_available_in_document": [
+          "1.1",
+          "1.2",
+          "1.3",
+          "2.1",
+          "2.2",
+          "2.3",
+          "2.4",
+          "3.1",
+          "3.2",
+          "3.3",
+          "3.4",
+          "4.1",
+          "4.2",
+          "5.1",
+          "5.2",
+          "6.1",
+          "6.2"
+        ],
+        "document_sha256": "2e2c41cd07f15b91"
+      },
+      "notes": "Same paraphrase as cite-01, produced independently for a different buyer. Shows the failure is systematic to this clause, not random."
+    },
+    {
+      "case_id": "cite-03",
+      "failure": "quote_absent_from_document",
+      "buyer": "Meridian Health Systems",
+      "question_ref": "VQ-004",
+      "question_text": "Confirm the absence of forced, bonded, indentured or trafficked labour across all tiers.",
+      "stored": {
+        "evidence_status": "answered",
+        "citation_document": "ALS-POL-001",
+        "citation_clause": "1.1",
+        "quote": "Altura Language Services LLC ('Altura Language Services', 'the Company') prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain.",
+        "draft_answer_excerpt": "Yes. Altura Language Services prohibits all forms of forced, bonded, indentured, involuntary prison, and trafficked labour in its own operations and throughout its supply chain. The Company enforces the Employer Pays Principle, prohibiting "
+      },
+      "expected": {
+        "quote_verified": false,
+        "clause_verified": true,
+        "resolution": "unresolved",
+        "actual_clause_ref_holding_quote": null,
+        "expected_status_after_verification": "partial",
+        "reason": "no citation is both quote_verified and clause_verified"
+      },
+      "source_of_truth": {
+        "cited_clause_content": "1.1 Altura Language Services LLC (\"Altura Language Services\", \"the Company\") prohibits all forms of modern slavery, human trafficking, forced labour, bonded labour, indentured labour, and involuntary prison labour in its own operations and throughout its supply chain.",
+        "clause_refs_available_in_document": [
+          "1.1",
+          "1.2",
+          "1.3",
+          "2.1",
+          "2.2",
+          "2.3",
+          "2.4",
+          "3.1",
+          "3.2",
+          "3.3",
+          "3.4",
+          "4.1",
+          "4.2",
+          "5.1",
+          "5.2",
+          "6.1",
+          "6.2"
+        ],
+        "document_sha256": "2e2c41cd07f15b91"
+      },
+      "notes": "Same paraphrase again, third buyer. Three buyers were shown the same unverifiable quotation."
+    },
+    {
+      "case_id": "cite-04",
+      "failure": "clause_ref_not_in_document",
+      "buyer": "Meridian Health Systems",
+      "question_ref": "VQ-020",
+      "question_text": "Confirm whether a BAA is executed where PHI is processed.",
+      "stored": {
+        "evidence_status": "answered",
+        "citation_document": "ALS-REC-001",
+        "citation_clause": "Entry RR-04",
+        "quote": "Healthcare client site assignments | Medium | Client site safety brief, BAA where PHI in scope, confidentiality obligations",
+        "draft_answer_excerpt": "Yes. Altura executes a Business Associate Agreement where Protected Health Information is in scope. The company's risk register documents that healthcare client site assignments require a BAA when PHI is processed, and interpreters assigned"
+      },
+      "expected": {
+        "quote_verified": true,
+        "clause_verified": false,
+        "resolution": "other_clause_same_doc",
+        "actual_clause_ref_holding_quote": "",
+        "expected_status_after_verification": "partial",
+        "reason": "no citation is both quote_verified and clause_verified"
+      },
+      "source_of_truth": {
+        "cited_clause_content": null,
+        "clause_refs_available_in_document": [
+          "",
+          "1.1",
+          "1.2",
+          "3.1",
+          "3.2",
+          "3.3",
+          "4.1"
+        ],
+        "document_sha256": "8f14624650eda018"
+      },
+      "notes": "Quote is REAL — a verbatim row from a markdown table in ALS-REC-001 — but the chunk has an empty clause_ref, so the model synthesised '§Entry RR-04' from the table's own Entry column. Misattribution, not fabrication."
+    },
+    {
+      "case_id": "cite-05",
+      "failure": "clause_ref_not_in_document",
+      "buyer": "Meridian Health Systems",
+      "question_ref": "VQ-015",
+      "question_text": "Describe the compliance training curriculum and its frequency.",
+      "stored": {
+        "evidence_status": "answered",
+        "citation_document": "ALS-TRN-001",
+        "citation_clause": "Heading 1. Curriculum",
+        "quote": "Module | Audience | Frequency | Source policy ... Anti-trafficking and forced labour awareness | All employees and contractors | Onboarding + annual ... Labour standards, anti-harassment, grievance channels | All employees and contractors | Onboarding + annual ... Anti-bribery and corruption | All employees; contractors in client-facing or procurement roles | Onboarding + annual ... Speak-up and non-retaliation | All employees and contractors | Onboarding + annual ... Recruitment fee risk and forced labour indicators | Procurement and contractor sourcing personnel | Annual ... Confidentiality and PHI handling for interpreters | Interpreters on healthcare engagements | Onboarding + annual",
+        "draft_answer_excerpt": "Altura delivers a structured compliance training curriculum covering anti-trafficking and forced labor awareness, labor standards and anti-harassment, anti-bribery and corruption, speak-up and non-retaliation protections, recruitment fee ri"
+      },
+      "expected": {
+        "quote_verified": false,
+        "clause_verified": false,
+        "resolution": "unresolved",
+        "actual_clause_ref_holding_quote": null,
+        "expected_status_after_verification": "partial",
+        "reason": "no citation is both quote_verified and clause_verified"
+      },
+      "source_of_truth": {
+        "cited_clause_content": null,
+        "clause_refs_available_in_document": [
+          "",
+          "2.1",
+          "2.2",
+          "2.3",
+          "3.1",
+          "3.2"
+        ],
+        "document_sha256": "39fc7c87b6475ea3"
+      },
+      "notes": "Model synthesised '§Heading 1. Curriculum' from a heading. Neither the clause_ref nor the quoted text resolves."
+    }
+  ],
+  "expectations_derived_by": "Independent search of evidence_chunks for the normalised quote, not by running citation_verify. Verified by hand 2026-08-14."
+}

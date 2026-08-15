@@ -4,10 +4,14 @@ export default function RunReview({ runId, onBack }) {
   const [run, setRun] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [sandboxEvents, setSandboxEvents] = useState([]);
+  const [quoteVerification, setQuoteVerification] = useState(null);
   const [loading, setLoading] = useState(true);
   const [answering, setAnswering] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [artifacts, setArtifacts] = useState(null);
+  const [artifactsError, setArtifactsError] = useState(null);
+  const [loadingArtifacts, setLoadingArtifacts] = useState(false);
   const [hoveredCitation, setHoveredCitation] = useState(null);
   const pollTimerRef = useRef(null);
 
@@ -32,6 +36,7 @@ export default function RunReview({ runId, onBack }) {
 
         setQuestions(rawQs);
         setSandboxEvents(data.sandbox_events || []);
+        setQuoteVerification(data.quote_verification || null);
 
         const currentStatus = data.run.status;
         if (currentStatus === 'answering') {
@@ -72,6 +77,27 @@ export default function RunReview({ runId, onBack }) {
       }
     };
   }, [runId]);
+
+  // Fetched on demand rather than in the 1.5s poll: full program source is
+  // large and only needed when the panel is opened.
+  const toggleGeneratedCode = async () => {
+    const next = !showCode;
+    setShowCode(next);
+    if (!next || artifacts !== null) return;
+
+    setLoadingArtifacts(true);
+    setArtifactsError(null);
+    try {
+      const res = await fetch(`/api/runs/${runId}/artifacts`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setArtifacts(data.artifacts || []);
+    } catch (e) {
+      setArtifactsError(e.message);
+    } finally {
+      setLoadingArtifacts(false);
+    }
+  };
 
   const handleAnswerAll = async () => {
     setAnswering(true);
@@ -268,6 +294,17 @@ export default function RunReview({ runId, onBack }) {
           <div className="stat-value" style={{ color: 'var(--gap-fg)' }}>{gapCount}</div>
         </div>
         <div className="stat-tile">
+          <div className="stat-label">Quotes Verified</div>
+          <div className="stat-value" style={{ color: quoteVerification && quoteVerification.total > 0 && quoteVerification.verified < quoteVerification.total ? 'var(--warn-fg)' : 'var(--ok-fg)' }}>
+            {quoteVerification && quoteVerification.total > 0
+              ? `${quoteVerification.verified} of ${quoteVerification.total}`
+              : '—'}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--ink-3)', marginTop: '2px' }}>
+            {quoteVerification && quoteVerification.total > 0 ? 'found verbatim in the cited clause' : 'no citations yet'}
+          </div>
+        </div>
+        <div className="stat-tile">
           <div className="stat-label">Elapsed Sandbox</div>
           <div className="stat-value">{elapsed}s</div>
         </div>
@@ -303,10 +340,12 @@ export default function RunReview({ runId, onBack }) {
                 questions.map((q) => {
                   const ans = q.answer || {};
                   const status = ans.evidence_status || 'gap';
-                  const rawConf = ans.confidence ?? 0;
+                  const rawConf = ans.answer_confidence ?? 0;
                   const percentConf = Math.round(rawConf * 100);
                   const answerText = ans.reviewed_answer || ans.draft_answer || '';
                   const barClass = status === 'answered' || status === 'supported' ? 'ok' : status === 'partial' ? 'warn' : 'gap';
+                  const cits = ans.citations || [];
+                  const primaryCitation = cits.find((c) => c.quote_verified && c.clause_verified) || cits[0] || null;
 
                   return (
                     <tr key={q.id}>
@@ -323,21 +362,41 @@ export default function RunReview({ runId, onBack }) {
                       </td>
                       <td style={{ position: 'relative' }}>
                         {ans.citation_document ? (
-                          <span
-                            className="doc-chip"
-                            onMouseEnter={() => setHoveredCitation(ans)}
-                            onMouseLeave={() => setHoveredCitation(null)}
-                          >
-                            {ans.citation_document} {ans.citation_clause ? `§${ans.citation_clause}` : ''}
-                            {hoveredCitation === ans && (
-                              <div className="popover">
-                                <strong className="doc-chip">{ans.citation_document} {ans.citation_clause ? `§${ans.citation_clause}` : ''}</strong>
-                                <p style={{ marginTop: '6px', color: 'var(--ink-2)' }}>
-                                  "{ans.quote || 'Exact clause quote verified in policy evidence.'}"
-                                </p>
+                          <>
+                            <span
+                              className="doc-chip"
+                              onMouseEnter={() => setHoveredCitation(ans)}
+                              onMouseLeave={() => setHoveredCitation(null)}
+                            >
+                              {ans.citation_document} {ans.citation_clause ? `§${ans.citation_clause}` : ''}
+                              {hoveredCitation === ans && (
+                                <div className="popover">
+                                  <strong className="doc-chip">{ans.citation_document} {ans.citation_clause ? `§${ans.citation_clause}` : ''}</strong>
+                                  {primaryCitation && primaryCitation.quote_verified && primaryCitation.clause_verified ? (
+                                    <p style={{ marginTop: '6px', color: 'var(--ink-2)' }}>
+                                      "{primaryCitation.quote}"
+                                    </p>
+                                  ) : (
+                                    <>
+                                      {/* Not shown as a quotation: this text was not found
+                                          verbatim in the clause it names. */}
+                                      <p style={{ marginTop: '6px', color: 'var(--ink-2)', fontStyle: 'italic' }}>
+                                        {primaryCitation ? primaryCitation.quote : ans.quote}
+                                      </p>
+                                      <p style={{ marginTop: '6px', color: 'var(--warn-fg)', fontSize: '12px' }}>
+                                        {ans.verification_note || 'This wording was not found verbatim in the cited clause.'}
+                                      </p>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </span>
+                            {primaryCitation && !(primaryCitation.quote_verified && primaryCitation.clause_verified) && (
+                              <div className="mono-text" style={{ fontSize: '11px', color: 'var(--warn-fg)', marginTop: '4px' }}>
+                                unverified quote
                               </div>
                             )}
-                          </span>
+                          </>
                         ) : (
                           <span className="mono-text" style={{ color: 'var(--ink-3)' }}>—</span>
                         )}
@@ -409,23 +468,54 @@ export default function RunReview({ runId, onBack }) {
       <div className="sandbox-audit-trail-panel">
         <div className="sandbox-audit-trail-header">
           <span className="sandbox-audit-trail-title">Sandboxed Execution — Daytona Audit Trail</span>
-          <button className="btn btn-secondary" onClick={() => setShowCode(!showCode)} style={{ fontSize: '12px', padding: '4px 10px' }}>
-            {showCode ? 'Hide Generated Code' : 'View Generated Code'}
+          <button className="btn btn-secondary" onClick={toggleGeneratedCode} style={{ fontSize: '12px', padding: '4px 10px' }}>
+            {showCode ? 'Hide Executed Code' : 'View Executed Code'}
           </button>
         </div>
 
         {showCode && (
-          <div style={{ marginBottom: '16px', background: '#171717', border: '1px solid #262626', borderRadius: '6px', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '12.5px', color: '#5EEAD4', overflowX: 'auto' }}>
-            <pre>{`# Generated Python executed inside Daytona sandbox container
-import openpyxl, json
-wb = openpyxl.load_workbook('/tmp/in/questionnaire.xlsx', data_only=True)
-sheet = wb.active
-res = []
-for r in range(5, sheet.max_row + 1):
-    q = sheet.cell(row=r, column=2).value
-    if q:
-        res.append({"ref": f"Q-{r-4:02d}", "question": q, "row": r, "answer_col": "D", "evidence_col": "E"})
-print(json.dumps(res))`}</pre>
+          <div style={{ marginBottom: '16px' }}>
+            {loadingArtifacts && (
+              <div className="mono-text" style={{ color: 'var(--ink-3)', fontSize: '12.5px' }}>
+                Loading executed programs...
+              </div>
+            )}
+
+            {artifactsError && (
+              <div className="mono-text" style={{ color: 'var(--gap-fg)', fontSize: '12.5px' }}>
+                Could not load executed code: {artifactsError}
+              </div>
+            )}
+
+            {!loadingArtifacts && !artifactsError && artifacts && artifacts.length === 0 && (
+              <div className="mono-text" style={{ color: 'var(--ink-3)', fontSize: '12.5px' }}>
+                No programs were executed for this run. Runs created before execution
+                capture was added have no stored source.
+              </div>
+            )}
+
+            {!loadingArtifacts && artifacts && artifacts.map((a) => {
+              const originLabel = a.origin === 'model'
+                ? `model-authored${a.model ? ` · ${a.model}` : ''}`
+                : a.origin === 'builtin_probe'
+                  ? 'built-in probe — not model-authored'
+                  : 'built-in fallback template — the model did not produce a usable program';
+              return (
+                <div key={a.id} style={{ marginBottom: '14px' }}>
+                  <div className="mono-text" style={{ fontSize: '11.5px', color: 'var(--ink-3)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {a.phase} · attempt {a.attempt} · {a.line_count} lines · exit {a.exit_code ?? 'n/a'} · {originLabel}
+                  </div>
+                  <div style={{ background: '#171717', border: '1px solid #262626', borderRadius: '6px', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '12.5px', color: '#5EEAD4', overflowX: 'auto' }}>
+                    <pre style={{ margin: 0 }}>{a.source}</pre>
+                  </div>
+                  {a.stdout ? (
+                    <div style={{ background: '#111', border: '1px solid #262626', borderTop: 'none', borderRadius: '0 0 6px 6px', padding: '10px 12px', fontFamily: 'var(--font-mono)', fontSize: '11.5px', color: 'var(--ink-3)', overflowX: 'auto', maxHeight: '150px' }}>
+                      <pre style={{ margin: 0 }}>{a.stdout.slice(0, 1200)}</pre>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         )}
 
