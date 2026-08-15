@@ -1,0 +1,192 @@
+# Compliance Passport — Standing Rules
+
+This product's entire value proposition is that it does not state things it
+cannot support. Every rule below exists because this codebase already violated
+it once, in a way that produced convincing output while the real path was dead.
+
+These rules bind all future work. When a rule conflicts with finishing faster,
+the rule wins.
+
+---
+
+## 1. No silent fallbacks
+
+**If a dependency is unreachable — the model, the sandbox, the database — raise.**
+
+Never substitute a template, a default confidence, a mock result, or placeholder
+bytes for a real result. A visible failure is always cheaper than a plausible
+fake.
+
+This has already happened three times here:
+
+- **The parser was never generated.** `call_anthropic_llm` sent the
+  compliance-answer JSON schema as the system prompt for *every* call, including
+  code generation. The model returned JSON, `is_python_program` rejected it, and
+  the hand-written template in `main.py` ran instead. The audit trail, the UI,
+  and the demo all showed a working "agent writes a parser" flow. Nothing was
+  being generated.
+- **The offline answer fallback.** When the Anthropic API was unreachable, the
+  engine composed an answer from the top-ranked chunk and stamped it
+  `status: "answered", confidence: 0.85`. A fabricated compliance answer,
+  presented with above-average confidence, in a product whose premise is refusal.
+- **The mock sandbox.** It executed nothing but was structured so a caller could
+  download bytes and write them out as a completed questionnaire.
+
+Concretely:
+
+- A missing or malformed field in a model response is an error. Do not default
+  it. (`confidence` missing → raise, do not assume 0.5.)
+- A fallback that is genuinely necessary must be **loud, labelled, and recorded
+  in the audit trail**, must mark the run `degraded`, and must not be able to
+  produce an artifact a user could mistake for the real thing.
+- Never write a heuristic that emits the same response shape as the real
+  classifier. If the classifier is unavailable, return "not checked" — never a
+  guessed verdict. (The consistency fallback declared high-severity
+  contradictions from disjoint clause numbers and the literal word "emissions".)
+- `except: pass` around anything that matters is prohibited. Swallowing a
+  migration error, a citation-validation error, or a sandbox-cleanup error means
+  the next person cannot know what state the system is in.
+
+## 2. A raise nobody can see is a silent failure
+
+**Raising is not enough — the error must reach a human.**
+
+Never configure logging in a way that can suppress application or server
+loggers. `logging.config.fileConfig` defaults to
+`disable_existing_loggers=True`; it must be pinned `False`. This already
+happened here: Alembic's `fileConfig` ran inside application startup and
+switched off uvicorn's loggers, so a migration that correctly refused to adopt a
+drifted database produced a bare exit code 3 and no message. The check worked
+perfectly and the operator saw nothing.
+
+A failure path is only complete when it has been verified to produce **visible,
+readable output in the context where it will actually fire** — under the real
+server, not just in a direct function call or a unit test. Run it there and read
+what comes out.
+
+## 3. Verify with real data, not self-written tests
+
+**A passing test suite written against your own implementation proves nothing.**
+
+Acceptance means running the real path, with the real seed files in
+`seed/policies/` and `seed/questionnaires/`, and pasting the actual output.
+
+- "Tests pass" is not acceptance evidence. Neither is "the code looks correct."
+- Acceptance evidence is: the command you ran, and its unedited output. Real
+  question refs, real clause numbers, real counts, real error text.
+- The seed questionnaires exist to be adversarial to each other — three formats,
+  different ref prefixes, different answer columns, one multi-sheet. Use all of
+  them when the change touches ingest.
+- The current test suite is broken and untrustworthy (`conftest.py` fixtures pass
+  fields that no longer exist on the models; `test_batch3` asserts a response
+  shape the endpoint no longer returns; `test_batch2` calls the live Anthropic
+  API). Do not treat a green run as a signal, and do not add tests to it without
+  fixing it.
+- Write tests for regression protection *after* real-data verification, never as
+  a substitute for it.
+
+**Test the negative case.** Prove the check fails when it should, not only that
+it passes when it should. A guard is not verified until you have broken
+something on purpose and watched it catch it. The schema-drift check here
+compared exactly one index per table because of a cursor bug — it reported
+success on every database it was shown, and would have gone on reporting success
+forever. Only deliberately dropping a column exposed it.
+
+## 4. Migrations are code — read them, and never run them against live first
+
+**An autogenerated migration is a proposal, not an instruction.**
+
+Read every operation before applying it. Autogenerate compares against
+`Base.metadata` and cannot see anything outside it, so it will confidently
+propose destroying objects that are managed elsewhere.
+
+That is not hypothetical here. Migration `0002` was autogenerated and applied
+without being read. It proposed dropping `evidence_chunks_fts` and its five
+SQLite shadow tables, because the FTS5 virtual table is created by raw SQL and
+is not part of `Base.metadata`. Applied to the live database, it destroyed four
+shadow tables before failing on the virtual table itself — leaving retrieval
+broken, the virtual table impossible to drop (its constructor fails without its
+shadow tables), and `alembic_version` stranded at the previous revision. Recovery
+required a restore from backup.
+
+Therefore, every time:
+
+- **Read the generated migration in full** before it touches anything. If it
+  contains an operation you did not intend, delete that operation.
+- **Apply to a restored copy of the live database first**, verify the result,
+  and only then apply to live.
+- **Take a backup immediately before any migration that alters data**, and
+  confirm the backup restores before proceeding.
+- Anything managed by raw SQL must be excluded from autogenerate — see
+  `include_name` in `migrations/env.py`.
+- After adding a migration, run autogenerate once more against an up-to-date
+  database. It should propose nothing. If it proposes anything, the schema and
+  the models disagree and you need to know why before shipping.
+
+## 5. Never claim more than the code does
+
+**When reporting, distinguish verified from inferred.**
+
+- State explicitly which parts you ran and which parts you reasoned about. Say
+  "I did not run this" when you did not run it.
+- If a capability is partially implemented, say **which part**. "Citations are
+  validated" is a lie when only the document ID is checked and the clause and
+  quote are not. Say which field is checked and which is not.
+- Do not describe intent as behaviour. A prompt instructing the model to refuse
+  is not a refusal mechanism; the code that discards the answer is.
+- Do not render placeholder content as if it were real output. The "View
+  Generated Code" panel showed a hardcoded snippet that was never executed.
+- If a change is not verified end to end, the report says so in the first
+  sentence, not in a caveat at the bottom.
+
+## 6. Secrets only from the environment
+
+**Read from the process environment and raise on absence. No defaults, no
+literals, no committed keys.**
+
+- `get_required_anthropic_key()` is the pattern: read, strip, raise if empty.
+- Never interpolate a secret into a shell command string — it lands in the
+  process table and in logs. Pass it through the environment.
+- `.env` is gitignored and stays that way. Local credentials live outside the
+  repo.
+- **`load_dotenv` must always be `override=False`.** The process environment is
+  authoritative; `.env` only fills in what the deployment did not supply. With
+  `override=True` a stale file silently beat a deployment-provided key, so key
+  rotation could appear to succeed without taking effect — and an invalid key
+  set for a negative test was replaced by the real one, producing a false pass.
+- Startup logs which source each secret came from (`secret_source.py`). Names and
+  sources only — never values, prefixes, or lengths.
+- Never log a key, a key prefix, or a key length.
+
+## 7. Read before writing
+
+**Another agent or another session may have touched the tree.**
+
+- Read the current contents of a file before editing it. Do not edit from memory
+  of what it contained.
+- Check `git status` before starting and before committing.
+- If the tree has changed under you, stop and reconcile rather than overwriting.
+
+---
+
+## Scope discipline
+
+- Do what was asked. Do not expand scope because adjacent code looks wrong —
+  note it and move on.
+- One phase at a time. Implement, verify against the acceptance test with real
+  data, paste the evidence, stop. Wait for approval before the next phase.
+
+## Project facts worth keeping in context
+
+- Single FastAPI process serves both the API and the built React SPA.
+- Storage is SQLite (WAL) with an FTS5 virtual table for retrieval. Postgres is
+  planned, not present.
+- Model-authored code executes **only** via `sandbox.process.code_run` in a
+  Daytona container. There is no `exec`, `eval`, or `subprocess` on model output
+  anywhere in this codebase, and there must never be. `ast.parse` for validation
+  is fine; it does not execute.
+- The reference evidence library is Altura Language Services: 7 documents, 106
+  chunks, seeded on boot from `seed/policies/`.
+- Anything that is true only of Altura belongs in per-tenant data, not in code.
+  `answer_engine.py` currently hardcodes one organisation's compliance posture as
+  a substring list; that is a defect, not a pattern to follow.

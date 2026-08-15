@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
+import secret_source
 from config import get_settings, validate_and_bootstrap_storage
 from database import init_db, get_db, create_sqlite_engine
 from models import (
@@ -30,6 +31,8 @@ from models import (
     GapRecord,
     SandboxEvent,
     ExportRecord,
+    GeneratedArtifact,
+    AnswerCitation,
 )
 from evidence_service import (
     init_fts5,
@@ -80,10 +83,12 @@ class MockSandbox:
 
 class SafeSandboxRun:
     """Wrapper over SandboxRun that uses real Daytona API when DAYTONA_API_KEY is present."""
-    def __init__(self, label="compliance-passport", on_event: Optional[Callable[[dict], None]] = None):
+    def __init__(self, label="compliance-passport", on_event: Optional[Callable[[dict], None]] = None,
+                 on_artifact: Optional[Callable[[dict], None]] = None):
         self.label = label
         self.log = []
         self.on_event = on_event
+        self.on_artifact = on_artifact
         self._real_run = None
         self.sandbox = None
         self.degraded = False
@@ -92,7 +97,9 @@ class SafeSandboxRun:
         api_key = os.environ.get("DAYTONA_API_KEY", "").strip()
         if api_key:
             try:
-                self._real_run = SandboxRun(label=self.label, on_event=self.on_event)
+                self._real_run = SandboxRun(
+                    label=self.label, on_event=self.on_event, on_artifact=self.on_artifact
+                )
                 self._real_run.__enter__()
                 self.sandbox = self._real_run.sandbox
                 self.log = self._real_run.log
@@ -128,9 +135,17 @@ class SafeSandboxRun:
         self._note("shell.skipped", {"cmd": cmd, "reason": "mock sandbox — not executed"})
         return ""
 
-    def run_generated_code(self, code, purpose):
+    codegen_model = None
+
+    def run_generated_code(self, code, purpose, attempt=1, origin="model", model=None):
         if self._real_run:
-            return self._real_run.run_generated_code(code, purpose)
+            # builtin_probe and fallback_template are ours, not the model's:
+            # they must never carry a model id.
+            if model is None and origin == "model" and self.codegen_model is not None:
+                model = self.codegen_model.last
+            return self._real_run.run_generated_code(
+                code, purpose, attempt=attempt, origin=origin, model=model
+            )
         # Do NOT emit codegen.executed here. Nothing ran. Returning empty stdout makes
         # the caller fail loudly instead of recording fabricated results.
         self._note("codegen.skipped", {
@@ -185,6 +200,7 @@ class SafeSandboxRun:
 async def lifespan(app: FastAPI):
     """Application lifespan context manager for startup bootstrap and database initialization."""
     settings = validate_and_bootstrap_storage()
+    secret_source.log_report()
     engine = init_db()
 
     with Session(engine) as session:
@@ -333,6 +349,30 @@ def make_event_listener(run_id: str):
     return listener
 
 
+def make_artifact_listener(run_id: str):
+    """Persists the full source of each executed program as it runs."""
+    def listener(record: dict):
+        try:
+            engine = create_sqlite_engine()
+            with Session(engine) as local_db:
+                local_db.add(GeneratedArtifact(
+                    run_id=run_id,
+                    phase=str(record.get("phase", "parser")),
+                    attempt=int(record.get("attempt", 1)),
+                    origin=str(record.get("origin", "model")),
+                    source=record.get("source", ""),
+                    line_count=int(record.get("line_count", 0)),
+                    stdout=record.get("stdout"),
+                    exit_code=record.get("exit_code"),
+                    model=record.get("model"),
+                    sandbox_id=record.get("sandbox_id"),
+                ))
+                local_db.commit()
+        except Exception as e:
+            print(f"Error persisting GeneratedArtifact for run {run_id}: {e}")
+    return listener
+
+
 def update_run_status(
     run_id: str,
     new_status: str,
@@ -373,15 +413,21 @@ def ingest_background_task(run_id: str, local_path_str: str):
         sbx_id = "sbx_pending"
 
         degraded = False
-        with SafeSandboxRun(label="compliance-passport-ingest", on_event=event_listener) as run_sbx:
+        with SafeSandboxRun(
+            label="compliance-passport-ingest",
+            on_event=event_listener,
+            on_artifact=make_artifact_listener(run_id),
+        ) as run_sbx:
             sbx_id = getattr(run_sbx.sandbox, "id", "sbx_disposable")
             degraded = run_sbx.degraded
             update_run_status(run_id, "parsing", sandbox_id=sbx_id, degraded=degraded)
 
+            codegen_model = CodegenModel()
+            run_sbx.codegen_model = codegen_model
             parsed_questions = ingest_questionnaire(
                 run_sbx,
                 local_path_str,
-                make_llm_callable(run_sbx),
+                make_llm_callable(run_sbx, codegen_model),
                 fallback_code=template_program("parser"),
             )
 
@@ -449,7 +495,15 @@ def answer_all_background_task(run_id: str):
                     local_db.add(existing_ans)
 
                 existing_ans.evidence_status = ans_data["status"]
-                existing_ans.confidence = ans_data["confidence"]
+                # The two confidence columns are mutually exclusive by CHECK
+                # constraint: a refused question carries no answer confidence.
+                if ans_data["status"] == "gap":
+                    existing_ans.gap_confidence = ans_data["confidence"]
+                    existing_ans.answer_confidence = None
+                else:
+                    existing_ans.answer_confidence = ans_data["confidence"]
+                    existing_ans.gap_confidence = None
+                existing_ans.verification_note = ans_data.get("verification_note")
                 existing_ans.citation_document = primary_cit.get("doc_id")
                 existing_ans.citation_clause = primary_cit.get("clause_ref")
                 existing_ans.quote = primary_cit.get("quote")
@@ -466,6 +520,26 @@ def answer_all_background_task(run_id: str):
                         local_db.add(existing_gap)
                     existing_gap.gap_reason = ans_data["gap_reason"] or "Evidence gap identified."
                     existing_gap.closes_gap_with = ans_data["closes_gap_with"] or "Upload missing policy document."
+
+                local_db.flush()
+
+                # Replace this answer's citations wholesale; every citation is
+                # persisted with its verification verdict, not just the first.
+                local_db.query(AnswerCitation).filter_by(answer_id=existing_ans.id).delete()
+                for c in ans_data["citations"]:
+                    local_db.add(AnswerCitation(
+                        run_id=run_id,
+                        answer_id=existing_ans.id,
+                        chunk_id=c.get("chunk_id"),
+                        doc_id=c.get("doc_id") or "",
+                        clause_ref=c.get("clause_ref"),
+                        quote=c.get("quote"),
+                        quote_verified=bool(c.get("quote_verified")),
+                        clause_verified=bool(c.get("clause_verified")),
+                        resolution=c.get("resolution") or "unresolved",
+                        actual_clause_ref=c.get("actual_clause_ref"),
+                        rank=int(c.get("rank", 0)),
+                    ))
 
                 local_db.commit()
                 return q_item.id, ans_data
@@ -521,7 +595,11 @@ def export_background_task(run_id: str):
             )
 
         degraded = False
-        with SafeSandboxRun(label="compliance-passport-export", on_event=event_listener) as run_sbx:
+        with SafeSandboxRun(
+            label="compliance-passport-export",
+            on_event=event_listener,
+            on_artifact=make_artifact_listener(run_id),
+        ) as run_sbx:
             degraded = run_sbx.degraded
             remote_path = f"/tmp/in/{local_source.name}"
             run_sbx.exec_shell("mkdir -p /tmp/in /tmp/out")
@@ -529,7 +607,11 @@ def export_background_task(run_id: str):
             answers_bytes = json.dumps(answers_payload, ensure_ascii=False).encode('utf-8')
             run_sbx.put_bytes(answers_bytes, "/tmp/in/answers.json")
 
-            output_bytes = export_filled(run_sbx, remote_path, answers_payload, make_llm_callable(run_sbx))
+            codegen_model = CodegenModel()
+            run_sbx.codegen_model = codegen_model
+            output_bytes = export_filled(
+                run_sbx, remote_path, answers_payload, make_llm_callable(run_sbx, codegen_model)
+            )
 
         if not output_bytes:
             raise RuntimeError("Sandbox returned an empty export; refusing to write a placeholder file.")
@@ -609,7 +691,13 @@ def is_python_program(code: str) -> bool:
     return True
 
 
-def make_llm_callable(run_sbx=None) -> Callable[[str], str]:
+class CodegenModel:
+    """Carries the model id from the codegen call to the artifact record."""
+    def __init__(self):
+        self.last = None
+
+
+def make_llm_callable(run_sbx=None, codegen_model: Optional["CodegenModel"] = None) -> Callable[[str], str]:
     """
     Builds the callable handed to ingest_questionnaire / export_filled.
 
@@ -621,7 +709,11 @@ def make_llm_callable(run_sbx=None) -> Callable[[str], str]:
     def _callable(prompt_text: str) -> str:
         purpose = "parser" if any(k in prompt_text.lower() for k in PARSER_PROMPT_MARKERS) else "writer"
 
-        raw_text = call_anthropic_llm(prompt_text, system=CODEGEN_SYSTEM_PROMPT, raw=True)
+        raw_text, model_used = call_anthropic_llm(
+            prompt_text, system=CODEGEN_SYSTEM_PROMPT, raw=True, with_meta=True
+        )
+        if codegen_model is not None:
+            codegen_model.last = model_used
         preview = (raw_text or "")[:200].replace("\n", "\\n")
         print(f"[CODEGEN:{purpose}] model returned {len(raw_text or '')} chars; first 200: {preview}")
 
@@ -876,9 +968,23 @@ def get_run_details(run_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Run not found")
 
     questions = db.query(RunQuestion).filter_by(run_id=run_id).order_by(RunQuestion.row_index.asc()).all()
+
+    citations_by_answer = {}
+    for c in db.query(AnswerCitation).filter_by(run_id=run_id).order_by(AnswerCitation.rank.asc()).all():
+        citations_by_answer.setdefault(c.answer_id, []).append(c)
+
+    quotes_total = 0
+    quotes_verified = 0
+
     q_list = []
     for q in questions:
         ans = db.query(RunAnswer).filter_by(question_id=q.id).first()
+        cits = citations_by_answer.get(ans.id, []) if ans else []
+        for c in cits:
+            if c.quote:
+                quotes_total += 1
+                if c.quote_verified and c.clause_verified:
+                    quotes_verified += 1
         q_list.append({
             "id": q.id,
             "question_ref": q.question_ref,
@@ -889,7 +995,8 @@ def get_run_details(run_id: str, db: Session = Depends(get_db)):
             "answer_col": q.answer_col,
             "answer": {
                 "evidence_status": ans.evidence_status,
-                "confidence": ans.confidence,
+                "answer_confidence": ans.answer_confidence,
+                "gap_confidence": ans.gap_confidence,
                 "citation_document": ans.citation_document,
                 "citation_clause": ans.citation_clause,
                 "quote": ans.quote,
@@ -899,6 +1006,16 @@ def get_run_details(run_id: str, db: Session = Depends(get_db)):
                 "evidence_ref": ans.evidence_ref,
                 "unsupported_reason": ans.unsupported_reason,
                 "closes_gap_with": ans.closes_gap_with,
+                "verification_note": ans.verification_note,
+                "citations": [{
+                    "doc_id": c.doc_id,
+                    "clause_ref": c.clause_ref,
+                    "quote": c.quote,
+                    "quote_verified": c.quote_verified,
+                    "clause_verified": c.clause_verified,
+                    "resolution": c.resolution,
+                    "actual_clause_ref": c.actual_clause_ref,
+                } for c in cits],
             } if ans else None,
         })
 
@@ -922,8 +1039,52 @@ def get_run_details(run_id: str, db: Session = Depends(get_db)):
             "created_at": run.created_at.isoformat() if run.created_at else None,
         },
         "questions_count": len(q_list),
+        # The headline number: how many quoted citations were found verbatim in
+        # the clause they name. Computed from stored verdicts, not recalculated
+        # in the browser, so what the founder says out loud comes from the data.
+        "quote_verification": {
+            "verified": quotes_verified,
+            "total": quotes_total,
+        },
         "questions": q_list,
         "sandbox_events": evt_list,
+    }
+
+
+@app.get("/api/runs/{run_id}/artifacts")
+def get_run_artifacts(run_id: str, db: Session = Depends(get_db)):
+    """
+    Returns the full source of every program executed for this run.
+
+    Served on demand rather than inside the polled run-detail payload, because
+    the source is large and the review screen polls every 1.5s.
+    """
+    run = db.query(QuestionnaireRun).filter_by(id=run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    artifacts = (
+        db.query(GeneratedArtifact)
+        .filter_by(run_id=run_id)
+        .order_by(GeneratedArtifact.created_at.asc())
+        .all()
+    )
+    return {
+        "run_id": run_id,
+        "count": len(artifacts),
+        "artifacts": [{
+            "id": a.id,
+            "phase": a.phase,
+            "attempt": a.attempt,
+            "origin": a.origin,
+            "source": a.source,
+            "line_count": a.line_count,
+            "stdout": (a.stdout or "")[:4000],
+            "exit_code": a.exit_code,
+            "model": a.model,
+            "sandbox_id": a.sandbox_id,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        } for a in artifacts],
     }
 
 
@@ -981,7 +1142,18 @@ def jaccard_similarity(text1: str, text2: str) -> float:
     return len(t1 & t2) / len(t1 | t2)
 
 
-def classify_pair_llm_or_fallback(item1: tuple, item2: tuple, score: float) -> dict:
+VALID_VERDICTS = {"CONTRADICTION", "DRIFT", "CONSISTENT"}
+
+
+def classify_pair(item1: tuple, item2: tuple, score: float) -> dict:
+    """
+    Classifies one cross-buyer answer pair.
+
+    If the classifier is unavailable or returns something unusable, the verdict
+    is NOT_CHECKED. There is deliberately no heuristic fallback: guessing a
+    verdict from clause numbers manufactured high-severity compliance findings
+    that were indistinguishable from real ones.
+    """
     q1_text, a1, buyer1, ref1 = item1[4], item1[6] or item1[5], item1[2], item1[3]
     q2_text, a2, buyer2, ref2 = item2[4], item2[6] or item2[5], item2[2], item2[3]
 
@@ -994,29 +1166,22 @@ def classify_pair_llm_or_fallback(item1: tuple, item2: tuple, score: float) -> d
         f"Answer 2: {a2}"
     )
 
-    res = call_anthropic_llm(prompt, system=CONSISTENCY_SYSTEM_PROMPT)
-    if not res or not isinstance(res, dict) or "verdict" not in res:
-        if a1.strip() == a2.strip():
-            res = {
-                "verdict": "CONSISTENT",
-                "explanation": "Both answers state identical policy facts and evidence citations.",
-                "severity": "low",
-            }
-        else:
-            clauses1 = set(re.findall(r"§\s*[\d\.]+", a1))
-            clauses2 = set(re.findall(r"§\s*[\d\.]+", a2))
-            if (clauses1 and clauses2 and not (clauses1 & clauses2)) or ("emissions" in (q1_text + q2_text).lower() and clauses1 != clauses2):
-                res = {
-                    "verdict": "CONTRADICTION",
-                    "explanation": f"Answers cite incompatible policy sections ({list(clauses1)} vs {list(clauses2)}) and state differing material facts across buyers.",
-                    "severity": "high",
-                }
-            else:
-                res = {
-                    "verdict": "DRIFT",
-                    "explanation": "Answers are compatible but differ in specificity, clause citation, or completeness between buyers.",
-                    "severity": "medium",
-                }
+    try:
+        res = call_anthropic_llm(prompt, system=CONSISTENCY_SYSTEM_PROMPT)
+    except Exception as e:
+        print(f"[CONSISTENCY] classifier unavailable for {ref1}/{ref2}: {e}")
+        res = None
+
+    if not isinstance(res, dict) or res.get("verdict") not in VALID_VERDICTS:
+        res = {
+            "verdict": "NOT_CHECKED",
+            "explanation": (
+                "This pair was not compared — the classifier was unavailable or "
+                "returned an unusable response. No conclusion has been drawn "
+                "about whether these answers agree."
+            ),
+            "severity": None,
+        }
 
     return {
         "buyer_1": buyer1,
@@ -1028,9 +1193,12 @@ def classify_pair_llm_or_fallback(item1: tuple, item2: tuple, score: float) -> d
         "matched_question_text": q1_text,
         "answer_1": a1,
         "answer_2": a2,
-        "verdict": res.get("verdict", "CONSISTENT"),
-        "explanation": res.get("explanation", "Answers evaluated across buyers."),
-        "severity": res.get("severity", "low"),
+        # Direct indexing, not .get with a default: res is guaranteed to carry a
+        # verdict by the branch above, and a default here would quietly turn an
+        # unusable classifier response into a stated conclusion.
+        "verdict": res["verdict"],
+        "explanation": res["explanation"],
+        "severity": res["severity"],
         "jaccard_score": round(score, 2),
     }
 
@@ -1095,7 +1263,7 @@ def check_cross_buyer_consistency(
     results = []
     with ThreadPoolExecutor(max_workers=6) as executor:
         futures = [
-            executor.submit(classify_pair_llm_or_fallback, item1, item2, score)
+            executor.submit(classify_pair, item1, item2, score)
             for score, item1, item2 in selected_pairs
         ]
         for f in futures:
@@ -1106,14 +1274,22 @@ def check_cross_buyer_consistency(
 
     contradictions = [r for r in results if r["verdict"] == "CONTRADICTION"]
     drifts = [r for r in results if r["verdict"] == "DRIFT"]
+    not_checked = [r for r in results if r["verdict"] == "NOT_CHECKED"]
 
     return {
+        # compared_pairs counts pairs that actually received a verdict.
+        # not_checked_pairs are pairs the classifier could not judge; they are
+        # reported separately so an unavailable classifier can never read as a
+        # clean bill of health.
+        "compared_pairs": len(results) - len(not_checked),
+        "not_checked_pairs": len(not_checked),
         "checked_pairs": len(results),
         "dropped_pairs": dropped_pairs,
         "total_answers": total_answers,
         "total_buyers": total_buyers,
         "contradictions": contradictions,
         "drifts": drifts,
+        "not_checked": not_checked,
     }
 
 
@@ -1169,5 +1345,8 @@ def serve_spa_or_static(full_path: str):
 
 
 if __name__ == "__main__":
+    # No reload=True. The reloader runs a second process against the same SQLite
+    # file, so two writers race on every run. Use
+    # `uvicorn main:app --reload` explicitly when developing.
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000)

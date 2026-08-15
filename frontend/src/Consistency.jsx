@@ -45,13 +45,21 @@ export default function Consistency() {
   const drifts = data?.drifts ?? [];
   const checkedPairs = data?.checked_pairs ?? 0;
   const droppedPairs = data?.dropped_pairs ?? 0;
+  const notChecked = data?.not_checked ?? [];
+  const comparedPairs = data?.compared_pairs ?? 0;
 
   const renderSeverityPill = (severity, verdict) => {
     let bg = 'var(--ok-bg)';
     let border = 'var(--ok-border)';
     let fg = 'var(--ok-fg)';
 
-    if (verdict === 'CONTRADICTION' || severity === 'high') {
+    if (verdict === 'NOT_CHECKED') {
+      // Neutral, never green: this pair has no verdict, which is not the same
+      // as a clean one.
+      bg = 'var(--surface-sunken)';
+      border = 'var(--border)';
+      fg = 'var(--ink-3)';
+    } else if (verdict === 'CONTRADICTION' || severity === 'high') {
       bg = 'var(--gap-bg)';
       border = 'var(--gap-border)';
       fg = 'var(--gap-fg)';
@@ -193,8 +201,9 @@ export default function Consistency() {
           Answer consistency across buyers
         </h2>
         <div style={{ fontSize: '14px', color: 'var(--ink-2)', fontFamily: 'var(--font-mono)' }}>
-          {totalAnswers} answers compared across {totalBuyers} buyers · {contradictions.length} contradictions · {drifts.length} drift
-          {droppedPairs > 0 ? ` (capped at ${checkedPairs} pairs, ${droppedPairs} dropped)` : ''}
+          {totalAnswers} stored answers across {totalBuyers} buyers · {comparedPairs} pairs compared · {contradictions.length} contradictions · {drifts.length} drift
+          {notChecked.length > 0 ? ` · ${notChecked.length} not checked` : ''}
+          {droppedPairs > 0 ? ` · ${droppedPairs} above threshold not examined (cap ${checkedPairs})` : ''}
         </div>
       </div>
 
@@ -218,8 +227,22 @@ export default function Consistency() {
         </div>
       )}
 
-      {/* Positive result if 0 contradictions */}
-      {contradictions.length === 0 && (
+      {/* Pairs the classifier could not judge. Shown before any all-clear so an
+          unavailable classifier can never be mistaken for a clean result. */}
+      {notChecked.length > 0 && (
+        <div style={{ marginBottom: '28px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--ink-3)', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)' }}>
+            Not checked ({notChecked.length})
+          </h3>
+          <p style={{ color: 'var(--ink-2)', fontSize: '13.5px', marginBottom: '14px' }}>
+            These pairs were not compared. No conclusion has been drawn about whether they agree.
+          </p>
+          {notChecked.map((item, idx) => renderCard(item, `n-${idx}`))}
+        </div>
+      )}
+
+      {/* All-clear only when every candidate pair actually received a verdict. */}
+      {contradictions.length === 0 && notChecked.length === 0 && droppedPairs === 0 && (
         <div
           className="card-surface"
           style={{
@@ -231,10 +254,32 @@ export default function Consistency() {
           }}
         >
           <div style={{ fontWeight: '600', color: 'var(--ok-fg)', fontSize: '16px', marginBottom: '4px' }}>
-            {totalAnswers} answers compared across {totalBuyers} buyers. No contradictions found.
+            {comparedPairs} matching pairs compared across {totalBuyers} buyers. No contradictions found.
           </div>
           <div style={{ color: 'var(--ink-2)', fontSize: '13.5px' }}>
-            All cross-buyer disclosures are consistent with zero material factual conflicts detected.
+            Every pair above the match threshold received a verdict.
+          </div>
+        </div>
+      )}
+
+      {/* Qualified result: nothing found, but coverage was incomplete. */}
+      {contradictions.length === 0 && (notChecked.length > 0 || droppedPairs > 0) && (
+        <div
+          className="card-surface"
+          style={{
+            padding: '24px',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            marginBottom: '24px',
+          }}
+        >
+          <div style={{ fontWeight: '600', color: 'var(--ink)', fontSize: '16px', marginBottom: '4px' }}>
+            No contradictions found in the {comparedPairs} pair{comparedPairs === 1 ? '' : 's'} that were compared.
+          </div>
+          <div style={{ color: 'var(--ink-2)', fontSize: '13.5px' }}>
+            {notChecked.length > 0 && `${notChecked.length} pair${notChecked.length === 1 ? '' : 's'} could not be checked. `}
+            {droppedPairs > 0 && `${droppedPairs} further candidate pair${droppedPairs === 1 ? '' : 's'} above the match threshold were not examined. `}
+            This is not a clean bill of health.
           </div>
         </div>
       )}
